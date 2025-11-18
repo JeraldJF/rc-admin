@@ -5,6 +5,15 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Eye, Pencil, Trash2, Filter, Plus, Search } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { useNavigate } from "react-router-dom";
 import { mockEntities, Entity } from "@/data/mockData";
 import {
@@ -26,14 +35,18 @@ const Registry = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [schemaFilter, setSchemaFilter] = useState("All");
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const recordsPerPage = 10;
 
   const filteredEntities = entities.filter((entity) => {
-    const matchesSearch = 
-      entity.name_english.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      entity.name_khmer.includes(searchQuery);
+    const matchesSearch = entity.name_english.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesSchema = schemaFilter === "All" || entity.schema === schemaFilter;
     return matchesSearch && matchesSchema;
   });
+
+  const totalPages = Math.ceil(filteredEntities.length / recordsPerPage);
+  const startIndex = (currentPage - 1) * recordsPerPage;
+  const paginatedEntities = filteredEntities.slice(startIndex, startIndex + recordsPerPage);
 
   const handleDelete = () => {
     if (deleteId) {
@@ -43,6 +56,7 @@ const Registry = () => {
         description: "The record has been successfully removed.",
       });
       setDeleteId(null);
+      setCurrentPage(1);
     }
   };
 
@@ -87,52 +101,103 @@ const Registry = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name (English)</TableHead>
-                <TableHead>Name (Khmer)</TableHead>
+                <TableHead>Name</TableHead>
                 <TableHead>Schema</TableHead>
                 <TableHead>Created</TableHead>
                 <TableHead>Updated</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredEntities.map((entity) => (
+              {paginatedEntities.map((entity) => (
                 <TableRow key={entity.id}>
                   <TableCell className="font-medium">{entity.name_english}</TableCell>
-                  <TableCell>{entity.name_khmer}</TableCell>
                   <TableCell>{entity.schema}</TableCell>
                   <TableCell>{new Date(entity.created).toLocaleString()}</TableCell>
                   <TableCell>{new Date(entity.updated).toLocaleString()}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => navigate(`/entity/${entity.id}`)}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => navigate(`/entity/${entity.id}/edit`)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setDeleteId(entity.id)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
+                  <TableCell>
+                    <TooltipProvider>
+                      <div className="flex gap-2">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => navigate(`/entity/${entity.id}`)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>View</TooltipContent>
+                        </Tooltip>
+                        
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => navigate(`/entity/${entity.id}/edit`)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Edit</TooltipContent>
+                        </Tooltip>
+                        
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setDeleteId(entity.id)}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Delete</TooltipContent>
+                        </Tooltip>
+                      </div>
+                    </TooltipProvider>
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </div>
+        
+        {totalPages > 1 && (
+          <div className="mt-4">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious 
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                  />
+                </PaginationItem>
+                
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <PaginationItem key={page}>
+                    <PaginationLink
+                      onClick={() => setCurrentPage(page)}
+                      isActive={currentPage === page}
+                      className="cursor-pointer"
+                    >
+                      {page}
+                    </PaginationLink>
+                  </PaginationItem>
+                ))}
+                
+                <PaginationItem>
+                  <PaginationNext 
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
+        )}
       </div>
 
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>

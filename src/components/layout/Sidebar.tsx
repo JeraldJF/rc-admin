@@ -11,12 +11,12 @@ export const Sidebar = () => {
   };
 
   return (
-    <aside className="w-64 border-r border-border bg-sidebar min-h-screen flex flex-col">
+    <aside className="w-64 border-r border-border bg-sidebar h-screen flex flex-col fixed left-0 top-0">
       <div className="p-6 border-b border-sidebar-border">
         <h1 className="text-xl font-bold text-sidebar-foreground">Educational Registry</h1>
       </div>
       
-      <nav className="flex-1 p-4">
+      <nav className="flex-1 p-4 overflow-y-auto">
         <NavLink
           to="/registry"
           className="flex items-center gap-3 px-4 py-3 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
@@ -27,7 +27,7 @@ export const Sidebar = () => {
         </NavLink>
       </nav>
 
-      <div className="p-4 border-t border-sidebar-border">
+      <div className="p-4 border-t border-sidebar-border mt-auto">
         <button
           onClick={handleLogout}
           className="flex items-center gap-3 px-4 py-3 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent transition-colors w-full"
