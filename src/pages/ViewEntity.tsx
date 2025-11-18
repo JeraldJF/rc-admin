@@ -61,8 +61,8 @@ const ViewEntity = () => {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
-              <h1 className="text-3xl font-bold text-foreground">Entity Details</h1>
-              <p className="text-muted-foreground">Viewing {entity.schema} entity</p>
+              <p className="text-sm text-muted-foreground mb-1">Entity Details</p>
+              <h1 className="text-3xl font-bold text-foreground">{entity.name_english}</h1>
             </div>
           </div>
           <Button onClick={() => navigate(`/entity/${id}/edit`)} className="gap-2">
@@ -77,7 +77,7 @@ const ViewEntity = () => {
               <Eye className="h-6 w-6 text-muted-foreground" />
               <div className="flex-1">
                 <h2 className="text-2xl font-bold text-foreground">
-                  {entity.name_english} {entity.name_khmer}
+                  {entity.name_english}
                 </h2>
               </div>
               <Badge variant="outline" className="text-base">
@@ -86,8 +86,7 @@ const ViewEntity = () => {
             </div>
 
             <div className="grid grid-cols-2 gap-6">
-              <InfoRow label="Name (English)" value={entity.name_english} />
-              <InfoRow label="Name (Khmer)" value={entity.name_khmer} />
+              <InfoRow label="Name" value={entity.name_english} />
               <InfoRow label="Father Name" value={entity.father_name} />
               <InfoRow label="Mother Name" value={entity.mother_name} />
               <InfoRow label="Date of Birth" value={entity.dob} />

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Activity } from "lucide-react";
+import { Fingerprint } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const Login = () => {
@@ -45,6 +45,7 @@ const Login = () => {
     
     if (validateForm()) {
       localStorage.setItem("isLoggedIn", "true");
+      localStorage.setItem("userEmail", email);
       toast({
         title: "Login successful",
         description: "Welcome back!",
@@ -59,7 +60,7 @@ const Login = () => {
         <CardContent className="pt-8 pb-8">
           <div className="flex flex-col items-center mb-8">
             <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
-              <Activity className="h-12 w-12 text-primary" />
+              <Fingerprint className="h-12 w-12 text-primary" />
             </div>
             <h1 className="text-3xl font-bold text-foreground">RC Admin</h1>
             <p className="text-muted-foreground mt-2">Sign in to your account</p>

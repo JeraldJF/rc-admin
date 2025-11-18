@@ -1,31 +1,39 @@
-import { Sun, Moon, User } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Sun, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 
 export const TopBar = () => {
   const [theme, setTheme] = useState<"light" | "dark">("light");
-  const [language, setLanguage] = useState("English");
+  const [username, setUsername] = useState("admin");
 
   useEffect(() => {
-    if (theme === "dark") {
-      document.documentElement.classList.add("dark");
+    const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
+    if (savedTheme) {
+      setTheme(savedTheme);
+      document.documentElement.classList.toggle("dark", savedTheme === "dark");
     } else {
-      document.documentElement.classList.remove("dark");
+      if (theme === "dark") {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+    }
+    
+    const userEmail = localStorage.getItem("userEmail");
+    if (userEmail) {
+      const emailUsername = userEmail.split("@")[0];
+      setUsername(emailUsername);
     }
   }, [theme]);
 
   const toggleTheme = () => {
-    setTheme(theme === "light" ? "dark" : "light");
+    const newTheme = theme === "light" ? "dark" : "light";
+    setTheme(newTheme);
+    localStorage.setItem("theme", newTheme);
   };
 
   return (
-    <header className="h-16 border-b border-border bg-background flex items-center justify-between px-6">
-      <div>
-        <h2 className="text-xl font-semibold text-foreground">Welcome to Educational Registry</h2>
-        <p className="text-sm text-muted-foreground">Manage your registry data</p>
-      </div>
-      
+    <header className="h-16 border-b border-border bg-background flex items-center justify-end px-6">
       <div className="flex items-center gap-4">
         <Button
           variant="ghost"
@@ -36,20 +44,9 @@ export const TopBar = () => {
           {theme === "light" ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
         </Button>
 
-        <Select value={language} onValueChange={setLanguage}>
-          <SelectTrigger className="w-32">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent className="bg-popover">
-            <SelectItem value="English">English</SelectItem>
-            <SelectItem value="Khmer">Khmer</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary">
-          <User className="h-5 w-5 text-secondary-foreground" />
-          <div>
-            <p className="text-sm font-medium text-secondary-foreground">mptcadmin</p>
+        <div className="flex items-center gap-2 pl-4 border-l border-border">
+          <div className="text-right">
+            <p className="text-sm font-medium text-foreground">{username}</p>
             <p className="text-xs text-muted-foreground">Admin</p>
           </div>
         </div>

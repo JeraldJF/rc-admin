@@ -137,14 +137,6 @@ const EditEntity = () => {
                   />
                   {errors.name_english && <p className="text-sm text-destructive">{errors.name_english}</p>}
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="name_khmer">Name (Khmer)</Label>
-                  <Input
-                    id="name_khmer"
-                    value={formData.name_khmer || ""}
-                    onChange={(e) => setFormData({ ...formData, name_khmer: e.target.value })}
-                  />
-                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
