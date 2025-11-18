@@ -1,145 +1,167 @@
 export interface Entity {
   id: string;
-  name_english: string;
-  father_name?: string;
-  mother_name?: string;
+  schema: "Student" | "Teacher";
+  created: string;
+  updated: string;
+  
+  // Common fields
   dob: string;
   gender: string;
+  
+  // Student-specific fields
+  fullName?: string;
+  mobile?: string;
+  email?: string;
+  instituteName?: string;
+  
+  // Teacher-specific fields
+  name?: string;
+  subject?: string;
+  
+  // Legacy fields (keeping for backward compatibility)
+  name_english?: string;
+  father_name?: string;
+  mother_name?: string;
   province?: string;
   district?: string;
   commune?: string;
   village?: string;
-  created: string;
-  updated: string;
-  schema: "Student" | "Teacher";
 }
 
 export const mockEntities: Entity[] = [
   {
     id: "1",
-    name_english: "Thea Monorith",
-    father_name: "Thea Veasna",
-    mother_name: "Sok Channary",
+    schema: "Student",
+    fullName: "Thea Monorith",
     dob: "2005-03-15",
     gender: "Male",
-    province: "Kandal",
-    district: "Ta Khmau",
-    commune: "Ta Khmau",
-    village: "Prek Eng",
-    created: "2024-01-15T10:30:00Z",
-    updated: "2024-01-20T14:45:00Z",
-    schema: "Student",
+    mobile: "+855 12 345 678",
+    email: "thea.monorith@student.edu",
+    instituteName: "Royal University of Phnom Penh",
+    created: "2025-11-18T10:30:00Z",
+    updated: "2025-11-19T08:15:00Z",
+    name_english: "Thea Monorith",
   },
   {
     id: "2",
-    name_english: "Sophia Chen",
-    father_name: "Chen Wei",
-    mother_name: "Liu Mei",
+    schema: "Student",
+    fullName: "Sophia Chen",
     dob: "2006-07-22",
     gender: "Female",
-    province: "Phnom Penh",
-    district: "Chamkar Mon",
-    commune: "Toul Svay Prey",
-    village: "Boeung Trabek",
-    created: "2024-01-16T09:15:00Z",
-    updated: "2024-01-21T11:20:00Z",
-    schema: "Student",
+    mobile: "+855 98 765 432",
+    email: "sophia.chen@student.edu",
+    instituteName: "National University of Management",
+    created: "2025-11-17T09:15:00Z",
+    updated: "2025-11-18T14:20:00Z",
+    name_english: "Sophia Chen",
   },
   {
     id: "3",
-    name_english: "David Williams",
+    schema: "Teacher",
+    name: "David Williams",
     dob: "1985-11-08",
     gender: "Male",
-    created: "2024-01-10T08:00:00Z",
-    updated: "2024-01-18T16:30:00Z",
-    schema: "Teacher",
+    mobile: "+855 11 222 333",
+    email: "david.williams@teacher.edu",
+    subject: "Mathematics",
+    instituteName: "International School of Phnom Penh",
+    created: "2025-11-15T08:00:00Z",
+    updated: "2025-11-18T16:30:00Z",
+    name_english: "David Williams",
   },
   {
     id: "4",
-    name_english: "Emma Thompson",
-    father_name: "Robert Thompson",
-    mother_name: "Sarah Johnson",
+    schema: "Student",
+    fullName: "Emma Thompson",
     dob: "2005-09-12",
     gender: "Female",
-    province: "Siem Reap",
-    district: "Siem Reap",
-    commune: "Sala Kamreuk",
-    village: "Wat Bo",
-    created: "2024-01-17T13:45:00Z",
-    updated: "2024-01-22T10:15:00Z",
-    schema: "Student",
+    mobile: "+855 77 888 999",
+    email: "emma.thompson@student.edu",
+    instituteName: "Siem Reap University",
+    created: "2025-11-10T13:45:00Z",
+    updated: "2025-11-19T10:15:00Z",
+    name_english: "Emma Thompson",
   },
   {
     id: "5",
-    name_english: "Michael Rodriguez",
+    schema: "Teacher",
+    name: "Michael Rodriguez",
     dob: "1978-04-25",
     gender: "Male",
-    created: "2024-01-12T07:30:00Z",
-    updated: "2024-01-19T15:00:00Z",
-    schema: "Teacher",
+    mobile: "+855 99 111 222",
+    email: "michael.rodriguez@teacher.edu",
+    subject: "Physics",
+    instituteName: "Norton University",
+    created: "2025-11-05T07:30:00Z",
+    updated: "2025-11-17T15:00:00Z",
+    name_english: "Michael Rodriguez",
   },
   {
     id: "6",
-    name_english: "Olivia Martinez",
-    father_name: "Carlos Martinez",
-    mother_name: "Ana Garcia",
+    schema: "Student",
+    fullName: "Olivia Martinez",
     dob: "2006-02-18",
     gender: "Female",
-    province: "Battambang",
-    district: "Battambang",
-    commune: "Chamkar Samraong",
-    village: "Kdol Doun Teav",
-    created: "2024-01-14T11:00:00Z",
-    updated: "2024-01-23T09:30:00Z",
-    schema: "Student",
+    mobile: "+855 88 333 444",
+    email: "olivia.martinez@student.edu",
+    instituteName: "Battambang University",
+    created: "2025-10-28T11:00:00Z",
+    updated: "2025-11-16T09:30:00Z",
+    name_english: "Olivia Martinez",
   },
   {
     id: "7",
-    name_english: "James Anderson",
+    schema: "Teacher",
+    name: "James Anderson",
     dob: "1982-06-30",
     gender: "Male",
-    created: "2024-01-11T10:15:00Z",
-    updated: "2024-01-20T12:45:00Z",
-    schema: "Teacher",
+    mobile: "+855 70 555 666",
+    email: "james.anderson@teacher.edu",
+    subject: "English Literature",
+    instituteName: "Pannasastra University",
+    created: "2025-10-15T10:15:00Z",
+    updated: "2025-11-12T12:45:00Z",
+    name_english: "James Anderson",
   },
   {
     id: "8",
-    name_english: "Ava Brown",
-    father_name: "William Brown",
-    mother_name: "Elizabeth White",
+    schema: "Student",
+    fullName: "Ava Brown",
     dob: "2005-12-05",
     gender: "Female",
-    province: "Kandal",
-    district: "Takhmau",
-    commune: "Prek Ho",
-    village: "Roluos",
-    created: "2024-01-18T14:20:00Z",
-    updated: "2024-01-24T16:00:00Z",
-    schema: "Student",
+    mobile: "+855 66 777 888",
+    email: "ava.brown@student.edu",
+    instituteName: "Institute of Technology of Cambodia",
+    created: "2025-09-20T14:20:00Z",
+    updated: "2025-11-14T16:00:00Z",
+    name_english: "Ava Brown",
   },
   {
     id: "9",
-    name_english: "Benjamin Lee",
+    schema: "Teacher",
+    name: "Benjamin Lee",
     dob: "1990-08-14",
     gender: "Male",
-    created: "2024-01-13T09:45:00Z",
-    updated: "2024-01-21T13:15:00Z",
-    schema: "Teacher",
+    mobile: "+855 55 999 000",
+    email: "benjamin.lee@teacher.edu",
+    subject: "Computer Science",
+    instituteName: "Build Bright University",
+    created: "2025-08-25T09:45:00Z",
+    updated: "2025-11-10T13:15:00Z",
+    name_english: "Benjamin Lee",
   },
   {
     id: "10",
-    name_english: "Isabella Garcia",
-    father_name: "Jose Garcia",
-    mother_name: "Maria Lopez",
+    schema: "Student",
+    fullName: "Isabella Garcia",
     dob: "2006-05-28",
     gender: "Female",
-    province: "Phnom Penh",
-    district: "Daun Penh",
-    commune: "Chaktomuk",
-    village: "Wat Phnom",
-    created: "2024-01-19T08:30:00Z",
-    updated: "2024-01-25T11:45:00Z",
-    schema: "Student",
+    mobile: "+855 44 111 222",
+    email: "isabella.garcia@student.edu",
+    instituteName: "Cambodian Mekong University",
+    created: "2025-07-18T08:30:00Z",
+    updated: "2025-11-08T11:45:00Z",
+    name_english: "Isabella Garcia",
   },
 ];
 
@@ -193,3 +215,26 @@ export const villages: Record<string, string[]> = {
   "Sala Kamraeuk": ["Svay Dangkum", "Sala Kamraeuk", "Trapeang Ses"],
   Ratanak: ["Kdol Ta Hen", "Pralay", "Ratanak"],
 };
+
+export const institutes = [
+  "Royal University of Phnom Penh",
+  "National University of Management",
+  "Institute of Technology of Cambodia",
+  "Royal University of Law and Economics",
+  "Pannasastra University of Cambodia",
+  "Norton University",
+  "Build Bright University",
+  "Cambodian Mekong University",
+  "University of Cambodia",
+  "International University",
+  "Siem Reap University",
+  "Battambang University",
+  "International School of Phnom Penh",
+  "Northbridge International School Cambodia",
+  "Canadian International School of Phnom Penh",
+  "Western International School of Phnom Penh",
+  "Zaman International School",
+  "American Intercon School",
+  "British International School Phnom Penh",
+  "Australian Centre for Education",
+];

@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, Pencil, Eye } from "lucide-react";
 import { mockEntities, Entity } from "@/data/mockData";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 const ViewEntity = () => {
   const { id } = useParams();
@@ -46,57 +47,75 @@ const ViewEntity = () => {
   }
 
   const InfoRow = ({ label, value }: { label: string; value?: string }) => (
-    <div className="space-y-1">
-      <p className="text-sm font-medium text-muted-foreground">{label}</p>
-      <p className="text-base text-foreground">{value || "—"}</p>
+    <div className="space-y-1.5">
+      <p className="text-sm font-semibold text-muted-foreground">{label}</p>
+      <p className="text-base font-medium text-foreground">{value || "—"}</p>
     </div>
   );
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/registry")}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">Entity Details</p>
-              <h1 className="text-3xl font-bold text-foreground">{entity.name_english}</h1>
-            </div>
-          </div>
-          <Button onClick={() => navigate(`/entity/${id}/edit`)} className="gap-2">
-            <Pencil className="h-4 w-4" />
-            Edit
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={() => navigate("/registry")} className="gap-2 hover:bg-accent transition-colors rounded-lg">
+            <ArrowLeft className="h-4 w-4" />
+            <span className="font-semibold">Back</span>
           </Button>
+          <div className="h-6 w-px bg-border"></div>
+          <h1 className="text-2xl font-bold text-foreground">View Entity</h1>
         </div>
 
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-4 mb-6 pb-6 border-b border-border">
-              <Eye className="h-6 w-6 text-muted-foreground" />
-              <div className="flex-1">
+        <Card className="shadow-lg border-border rounded-xl overflow-hidden">
+          <CardContent className="pt-6 bg-card">
+            <div className="flex items-center justify-between gap-4 mb-6 pb-6 border-b border-border">
+              <div className="flex items-center gap-3">
+                <Eye className="h-6 w-6 text-primary" />
                 <h2 className="text-2xl font-bold text-foreground">
-                  {entity.name_english}
+                  {entity.schema === "Student" ? entity.fullName : entity.name}
                 </h2>
+                <Badge 
+                  variant="outline" 
+                  className={cn(
+                    "text-sm font-semibold px-3 py-1 border-2",
+                    entity.schema === "Student"
+                      ? "border-green-500 text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/30"
+                      : "border-blue-500 text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30"
+                  )}
+                >
+                  {entity.schema}
+                </Badge>
               </div>
-              <Badge variant="outline" className="text-base">
-                {entity.schema}
-              </Badge>
+              <Button onClick={() => navigate(`/entity/${id}/edit`)} className="gap-2 font-semibold rounded-lg">
+                <Pencil className="h-4 w-4" />
+                Edit
+              </Button>
             </div>
 
             <div className="grid grid-cols-2 gap-6">
-              <InfoRow label="Name" value={entity.name_english} />
-              <InfoRow label="Father Name" value={entity.father_name} />
-              <InfoRow label="Mother Name" value={entity.mother_name} />
-              <InfoRow label="Date of Birth" value={entity.dob} />
-              <InfoRow label="Gender" value={entity.gender} />
-              <InfoRow label="Province" value={entity.province} />
-              <InfoRow label="District" value={entity.district} />
-              <InfoRow label="Commune" value={entity.commune} />
-              <InfoRow label="Village" value={entity.village} />
-              <InfoRow label="Created" value={new Date(entity.created).toLocaleString()} />
-              <InfoRow label="Updated" value={new Date(entity.updated).toLocaleString()} />
+              {entity.schema === "Student" ? (
+                <>
+                  <InfoRow label="Full Name" value={entity.fullName} />
+                  <InfoRow label="Institute Name" value={entity.instituteName} />
+                  <InfoRow label="Date of Birth" value={entity.dob} />
+                  <InfoRow label="Gender" value={entity.gender} />
+                  <InfoRow label="Mobile number" value={entity.mobile} />
+                  <InfoRow label="Email ID" value={entity.email} />
+                  <InfoRow label="Created" value={new Date(entity.created).toLocaleString()} />
+                  <InfoRow label="Updated" value={new Date(entity.updated).toLocaleString()} />
+                </>
+              ) : (
+                <>
+                  <InfoRow label="Name" value={entity.name} />
+                  <InfoRow label="Gender" value={entity.gender} />
+                  <InfoRow label="Mobile" value={entity.mobile} />
+                  <InfoRow label="Email" value={entity.email} />
+                  <InfoRow label="Subject" value={entity.subject} />
+                  <InfoRow label="Institute Name" value={entity.instituteName} />
+                  <InfoRow label="Date of Birth" value={entity.dob} />
+                  <InfoRow label="Created" value={new Date(entity.created).toLocaleString()} />
+                  <InfoRow label="Updated" value={new Date(entity.updated).toLocaleString()} />
+                </>
+              )}
             </div>
           </CardContent>
         </Card>

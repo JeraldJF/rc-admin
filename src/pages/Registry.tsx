@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Eye, Pencil, Trash2, Filter, Plus, Search } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
 import {
   Pagination,
   PaginationContent,
@@ -16,6 +17,8 @@ import {
 } from "@/components/ui/pagination";
 import { useNavigate } from "react-router-dom";
 import { mockEntities, Entity } from "@/data/mockData";
+import { cn } from "@/lib/utils";
+import { formatDistanceToNow } from "date-fns";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,10 +39,11 @@ const Registry = () => {
   const [schemaFilter, setSchemaFilter] = useState("All");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const recordsPerPage = 10;
+  const recordsPerPage = 6;
 
   const filteredEntities = entities.filter((entity) => {
-    const matchesSearch = entity.name_english.toLowerCase().includes(searchQuery.toLowerCase());
+    const displayName = entity.schema === "Student" ? entity.fullName : entity.name;
+    const matchesSearch = displayName?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesSchema = schemaFilter === "All" || entity.schema === schemaFilter;
     return matchesSearch && matchesSchema;
   });
@@ -52,8 +56,9 @@ const Registry = () => {
     if (deleteId) {
       setEntities(entities.filter((entity) => entity.id !== deleteId));
       toast({
-        title: "Entity deleted",
+        title: "🗑️ Entity deleted",
         description: "The record has been successfully removed.",
+        variant: "error",
       });
       setDeleteId(null);
       setCurrentPage(1);
@@ -63,26 +68,20 @@ const Registry = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-foreground">Registry Management</h1>
-          <Button onClick={() => navigate("/entity/new")} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Add Entity
-          </Button>
-        </div>
-
-        <div className="flex items-center gap-4">
+        <h1 className="text-3xl font-bold text-foreground tracking-tight">Registry Management</h1>
+        
+        <div className="flex items-center gap-4 w-full">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search entities..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
+              className="pl-10 bg-card font-medium rounded-lg h-11 border-input"
             />
           </div>
           <Select value={schemaFilter} onValueChange={setSchemaFilter}>
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="w-40 bg-card font-semibold text-foreground rounded-lg h-11 border-input">
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-popover">
@@ -91,30 +90,70 @@ const Registry = () => {
               <SelectItem value="Teacher">Teacher</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2 font-semibold rounded-lg h-11 border-input">
             <Filter className="h-4 w-4" />
             Filter
           </Button>
+          <Button onClick={() => navigate("/entity/new")} className="gap-2 font-semibold rounded-lg h-11">
+            <Plus className="h-4 w-4" />
+            Add Entity
+          </Button>
         </div>
 
-        <div className="rounded-lg border border-border bg-card overflow-hidden">
+        <div className="rounded-xl border border-border bg-card overflow-hidden shadow-lg">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Schema</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead>Updated</TableHead>
-                <TableHead>Actions</TableHead>
+              <TableRow className="bg-muted/50 hover:bg-muted/50">
+                <TableHead className="font-bold text-foreground">Name</TableHead>
+                <TableHead className="font-bold text-foreground">Schema</TableHead>
+                <TableHead className="font-bold text-foreground">Created</TableHead>
+                <TableHead className="font-bold text-foreground">Updated</TableHead>
+                <TableHead className="font-bold text-foreground">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {paginatedEntities.map((entity) => (
-                <TableRow key={entity.id}>
-                  <TableCell className="font-medium">{entity.name_english}</TableCell>
-                  <TableCell>{entity.schema}</TableCell>
-                  <TableCell>{new Date(entity.created).toLocaleString()}</TableCell>
-                  <TableCell>{new Date(entity.updated).toLocaleString()}</TableCell>
+                <TableRow key={entity.id} className="hover:bg-muted/30 transition-colors">
+                  <TableCell className="font-semibold text-foreground">
+                    {entity.schema === "Student" ? entity.fullName : entity.name}
+                  </TableCell>
+                  <TableCell>
+                    <Badge 
+                      variant="outline" 
+                      className={cn(
+                        "border-2",
+                        entity.schema === "Student" 
+                          ? "border-green-500 text-green-700 bg-green-50 dark:bg-green-950/30" 
+                          : "border-blue-500 text-blue-700 bg-blue-50 dark:bg-blue-950/30"
+                      )}
+                    >
+                      {entity.schema}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="font-medium text-muted-foreground">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger className="cursor-help">
+                          {formatDistanceToNow(new Date(entity.created), { addSuffix: true })}
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {new Date(entity.created).toLocaleString()}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </TableCell>
+                  <TableCell className="font-medium text-muted-foreground">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger className="cursor-help">
+                          {formatDistanceToNow(new Date(entity.updated), { addSuffix: true })}
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {new Date(entity.updated).toLocaleString()}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </TableCell>
                   <TableCell>
                     <TooltipProvider>
                       <div className="flex gap-2">
@@ -166,13 +205,16 @@ const Registry = () => {
         </div>
         
         {totalPages > 1 && (
-          <div className="mt-4">
+          <div className="flex justify-end mt-4">
             <Pagination>
-              <PaginationContent>
+              <PaginationContent className="gap-1">
                 <PaginationItem>
                   <PaginationPrevious 
                     onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                    className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    className={cn(
+                      "cursor-pointer rounded-lg border-2 hover:bg-primary/10 hover:border-primary hover:text-primary transition-all",
+                      currentPage === 1 && "pointer-events-none opacity-50"
+                    )}
                   />
                 </PaginationItem>
                 
@@ -181,7 +223,12 @@ const Registry = () => {
                     <PaginationLink
                       onClick={() => setCurrentPage(page)}
                       isActive={currentPage === page}
-                      className="cursor-pointer"
+                      className={cn(
+                        "cursor-pointer rounded-lg border-2 transition-all",
+                        currentPage === page 
+                          ? "bg-primary text-primary-foreground border-primary hover:bg-primary/90" 
+                          : "border-border hover:bg-accent hover:border-primary/50 hover:text-primary"
+                      )}
                     >
                       {page}
                     </PaginationLink>
@@ -191,7 +238,10 @@ const Registry = () => {
                 <PaginationItem>
                   <PaginationNext 
                     onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                    className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    className={cn(
+                      "cursor-pointer rounded-lg border-2 hover:bg-primary/10 hover:border-primary hover:text-primary transition-all",
+                      currentPage === totalPages && "pointer-events-none opacity-50"
+                    )}
                   />
                 </PaginationItem>
               </PaginationContent>
@@ -210,7 +260,9 @@ const Registry = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+              Delete
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

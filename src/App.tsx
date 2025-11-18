@@ -7,6 +7,7 @@ import Login from "./pages/Login";
 import Registry from "./pages/Registry";
 import ViewEntity from "./pages/ViewEntity";
 import EditEntity from "./pages/EditEntity";
+import AddEntity from "./pages/AddEntity";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +27,7 @@ const App = () => (
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<Login />} />
           <Route path="/registry" element={<ProtectedRoute><Registry /></ProtectedRoute>} />
+          <Route path="/entity/new" element={<ProtectedRoute><AddEntity /></ProtectedRoute>} />
           <Route path="/entity/:id" element={<ProtectedRoute><ViewEntity /></ProtectedRoute>} />
           <Route path="/entity/:id/edit" element={<ProtectedRoute><EditEntity /></ProtectedRoute>} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

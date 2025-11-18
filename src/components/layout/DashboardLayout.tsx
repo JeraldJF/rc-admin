@@ -4,15 +4,16 @@ import { TopBar } from "./TopBar";
 
 interface DashboardLayoutProps {
   children: ReactNode;
+  title?: string;
 }
 
-export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
+export const DashboardLayout = ({ children, title }: DashboardLayoutProps) => {
   return (
     <div className="flex min-h-screen w-full bg-background">
       <Sidebar />
       <div className="flex-1 flex flex-col ml-64">
-        <TopBar />
-        <main className="flex-1 p-6">
+        <TopBar title={title} />
+        <main className="flex-1 p-6 bg-background">
           {children}
         </main>
       </div>

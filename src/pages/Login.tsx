@@ -47,8 +47,9 @@ const Login = () => {
       localStorage.setItem("isLoggedIn", "true");
       localStorage.setItem("userEmail", email);
       toast({
-        title: "Login successful",
+        title: "🎉 Login successful",
         description: "Welcome back!",
+        variant: "success",
       });
       navigate("/registry");
     }
