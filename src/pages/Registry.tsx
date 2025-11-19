@@ -72,7 +72,7 @@ const Registry = () => {
       toast({
         title: "🗑️ Entity deleted",
         description: "The record has been successfully removed.",
-        variant: "error",
+        variant: "success",
       });
       setDeleteId(null);
       setCurrentPage(1);
