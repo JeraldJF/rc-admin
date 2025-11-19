@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Eye, Pencil, Trash2, Filter, Plus, Search, SearchX } from "lucide-react";
+import { Eye, Pencil, Trash2, Filter, Plus, Search, SearchX, Loader2 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -40,6 +40,7 @@ const Registry = () => {
   const [schemaFilter, setSchemaFilter] = useState("All");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [isDeleting, setIsDeleting] = useState(false);
   const recordsPerPage = 5;
 
   // Handle search query from URL parameters
@@ -61,8 +62,12 @@ const Registry = () => {
   const startIndex = (currentPage - 1) * recordsPerPage;
   const paginatedEntities = filteredEntities.slice(startIndex, startIndex + recordsPerPage);
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (deleteId) {
+      setIsDeleting(true);
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
       setEntities(entities.filter((entity) => entity.id !== deleteId));
       toast({
         title: "🗑️ Entity deleted",
@@ -71,6 +76,7 @@ const Registry = () => {
       });
       setDeleteId(null);
       setCurrentPage(1);
+      setIsDeleting(false);
     }
   };
 
@@ -295,9 +301,16 @@ const Registry = () => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
-              Delete
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

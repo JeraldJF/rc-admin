@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Fingerprint } from "lucide-react";
+import { Fingerprint, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const Login = () => {
@@ -12,6 +12,7 @@ const Login = () => {
   const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
 
   const validateForm = () => {
@@ -40,10 +41,14 @@ const Login = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (validateForm()) {
+      setIsLoading(true);
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1200));
+      
       localStorage.setItem("isLoggedIn", "true");
       localStorage.setItem("userEmail", email);
       toast({
@@ -52,6 +57,7 @@ const Login = () => {
         variant: "success",
       });
       navigate("/registry");
+      setIsLoading(false);
     }
   };
 
@@ -98,8 +104,15 @@ const Login = () => {
               )}
             </div>
 
-            <Button type="submit" className="w-full mt-6 h-12 text-base font-medium">
-              Sign In
+            <Button type="submit" className="w-full mt-6 h-12 text-base font-medium" disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  Signing in...
+                </>
+              ) : (
+                "Sign In"
+              )}
             </Button>
           </form>
 

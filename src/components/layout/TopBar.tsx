@@ -1,4 +1,4 @@
-import { Sun, Moon, User, Languages, Search } from "lucide-react";
+import { Sun, Moon, User, Languages, Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
@@ -21,6 +21,7 @@ export const TopBar = ({ title }: TopBarProps) => {
   const [username, setUsername] = useState("admin");
   const [language, setLanguage] = useState("English");
   const [searchQuery, setSearchQuery] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -58,10 +59,14 @@ export const TopBar = ({ title }: TopBarProps) => {
     localStorage.setItem("theme", newTheme);
   };
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
+      setIsSearching(true);
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 800));
       navigate(`/registry?search=${encodeURIComponent(searchQuery.trim())}`);
+      setIsSearching(false);
     }
   };
 
@@ -70,11 +75,16 @@ export const TopBar = ({ title }: TopBarProps) => {
       {showSearchBar ? (
         <form onSubmit={handleSearch} className="flex-1 max-w-2xl">
           <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            {isSearching ? (
+              <Loader2 className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-primary animate-spin" />
+            ) : (
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            )}
             <Input
               placeholder="Search for entities..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              disabled={isSearching}
               className="pl-12 pr-4 bg-background font-medium rounded-xl h-12 border-2 border-input hover:border-primary/50 focus:border-primary transition-all text-base shadow-sm"
             />
           </div>

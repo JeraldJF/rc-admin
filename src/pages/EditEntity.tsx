@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft, CalendarIcon, Save } from "lucide-react";
+import { ArrowLeft, CalendarIcon, Save, Loader2 } from "lucide-react";
 import { mockEntities, Entity, institutes } from "@/data/mockData";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
@@ -25,6 +25,7 @@ const EditEntity = () => {
   const isNew = id === "new";
   
   const [loading, setLoading] = useState(!isNew);
+  const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState<Partial<Entity>>({
     schema: "Student",
     gender: "Male",
@@ -67,16 +68,21 @@ const EditEntity = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (validateForm()) {
+      setIsSaving(true);
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1200));
+      
       toast({
         title: "✅ Entity saved successfully",
         description: "The record has been updated.",
         variant: "success",
       });
       navigate("/registry");
+      setIsSaving(false);
     }
   };
 
@@ -125,7 +131,7 @@ const EditEntity = () => {
                       });
                       setErrors({});
                     }}
-                    disabled={!isNew}
+                    disabled={false}
                   >
                     <SelectTrigger className={`bg-background border-input hover:border-primary/60 focus:border-primary transition-all duration-200 rounded-lg h-11 ${errors.schema ? "border-destructive ring-2 ring-destructive/20" : ""}`}>
                       <SelectValue placeholder="Select schema" />
@@ -380,34 +386,27 @@ const EditEntity = () => {
                       {errors.email && <p className="text-sm font-medium text-destructive">{errors.email}</p>}
                     </FormField>
                   </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <FormField>
-                      <Label htmlFor="subject" className="text-sm font-semibold text-foreground">
-                        Subject <span className="text-destructive">*</span>
-                      </Label>
-                      <Input
-                        id="subject"
-                        value={formData.subject || ""}
-                        onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                        className={`rounded-lg h-11 ${errors.subject ? "border-destructive ring-2 ring-destructive/20" : ""}`}
-                        placeholder="e.g., Mathematics, Physics"
-                      />
-                      {errors.subject && <p className="text-sm font-medium text-destructive">{errors.subject}</p>}
-                    </FormField>
-                  </div>
                 </>
               )}
             </CardContent>
           </Card>
 
           <div className="flex justify-end gap-4">
-            <Button type="button" variant="outline" onClick={handleCancel} className="rounded-lg px-6">
+            <Button type="button" variant="outline" onClick={handleCancel} className="rounded-lg px-6" disabled={isSaving}>
               Cancel
             </Button>
-            <Button type="submit" className="rounded-lg px-8 bg-primary hover:bg-primary/90 gap-2">
-              <Save className="h-4 w-4" />
-              Save Changes
+            <Button type="submit" className="rounded-lg px-8 bg-primary hover:bg-primary/90 gap-2" disabled={isSaving}>
+              {isSaving ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4" />
+                  Save Changes
+                </>
+              )}
             </Button>
           </div>
         </form>

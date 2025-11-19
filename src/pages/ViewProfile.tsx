@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
-import { CalendarIcon, Save, User } from "lucide-react";
+import { CalendarIcon, Save, User, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -21,6 +21,7 @@ const ViewProfile = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [username, setUsername] = useState("admin");
+  const [isSaving, setIsSaving] = useState(false);
   
   const [formData, setFormData] = useState({
     fullName: "admin",
@@ -55,16 +56,21 @@ const ViewProfile = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (validateForm()) {
+      setIsSaving(true);
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1200));
+      
       toast({
         title: "✅ Profile updated successfully",
         description: "Your profile has been saved.",
         variant: "success",
       });
       navigate("/registry");
+      setIsSaving(false);
     }
   };
 
@@ -217,12 +223,21 @@ const ViewProfile = () => {
           </Card>
 
           <div className="flex justify-end gap-4">
-            <Button type="button" variant="outline" onClick={handleCancel} className="rounded-lg px-6">
+            <Button type="button" variant="outline" onClick={handleCancel} className="rounded-lg px-6" disabled={isSaving}>
               Cancel
             </Button>
-            <Button type="submit" className="rounded-lg px-8 bg-primary hover:bg-primary/90 gap-2">
-              <Save className="h-4 w-4" />
-              Save Changes
+            <Button type="submit" className="rounded-lg px-8 bg-primary hover:bg-primary/90 gap-2" disabled={isSaving}>
+              {isSaving ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4" />
+                  Save Changes
+                </>
+              )}
             </Button>
           </div>
         </form>
