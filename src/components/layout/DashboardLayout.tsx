@@ -12,7 +12,9 @@ export const DashboardLayout = ({ children, title }: DashboardLayoutProps) => {
     <div className="flex min-h-screen w-full bg-background">
       <Sidebar />
       <div className="flex-1 flex flex-col ml-64">
-        <TopBar title={title} />
+        <div className="sticky top-0 z-50">
+          <TopBar title={title} />
+        </div>
         <main className="flex-1 p-6 bg-background">
           {children}
         </main>
