@@ -109,7 +109,6 @@ const ViewEntity = () => {
                   <InfoRow label="Gender" value={entity.gender} />
                   <InfoRow label="Mobile" value={entity.mobile} />
                   <InfoRow label="Email" value={entity.email} />
-                  <InfoRow label="Subject" value={entity.subject} />
                   <InfoRow label="Institute Name" value={entity.instituteName} />
                   <InfoRow label="Date of Birth" value={entity.dob} />
                   <InfoRow label="Created" value={new Date(entity.created).toLocaleString()} />

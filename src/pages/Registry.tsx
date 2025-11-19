@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Eye, Pencil, Trash2, Filter, Plus, Search } from "lucide-react";
+import { Eye, Pencil, Trash2, Filter, Plus, Search, SearchX } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -15,7 +15,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { mockEntities, Entity } from "@/data/mockData";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
@@ -34,12 +34,21 @@ import { useToast } from "@/hooks/use-toast";
 const Registry = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
   const [entities, setEntities] = useState<Entity[]>(mockEntities);
   const [searchQuery, setSearchQuery] = useState("");
   const [schemaFilter, setSchemaFilter] = useState("All");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const recordsPerPage = 6;
+  const recordsPerPage = 5;
+
+  // Handle search query from URL parameters
+  useEffect(() => {
+    const searchFromUrl = searchParams.get("search");
+    if (searchFromUrl) {
+      setSearchQuery(searchFromUrl);
+    }
+  }, [searchParams]);
 
   const filteredEntities = entities.filter((entity) => {
     const displayName = entity.schema === "Student" ? entity.fullName : entity.name;
@@ -90,29 +99,55 @@ const Registry = () => {
               <SelectItem value="Teacher">Teacher</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" className="gap-2 font-semibold rounded-lg h-11 border-input">
+          {/* <Button variant="outline" className="gap-2 font-semibold rounded-lg h-11 border-input">
             <Filter className="h-4 w-4" />
             Filter
-          </Button>
+          </Button> */}
           <Button onClick={() => navigate("/entity/new")} className="gap-2 font-semibold rounded-lg h-11">
             <Plus className="h-4 w-4" />
             Add Entity
           </Button>
         </div>
 
-        <div className="rounded-xl border border-border bg-card overflow-hidden shadow-lg">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/50 hover:bg-muted/50">
-                <TableHead className="font-bold text-foreground">Name</TableHead>
-                <TableHead className="font-bold text-foreground">Schema</TableHead>
-                <TableHead className="font-bold text-foreground">Created</TableHead>
-                <TableHead className="font-bold text-foreground">Updated</TableHead>
-                <TableHead className="font-bold text-foreground">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginatedEntities.map((entity) => (
+        {filteredEntities.length === 0 ? (
+          <div className="rounded-2xl border-2 border-dashed border-primary/20 bg-gradient-to-br from-muted/30 via-muted/10 to-transparent overflow-hidden">
+            <div className="flex flex-col items-center justify-center py-12 px-6">
+              <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-4 ring-4 ring-primary/5">
+                <SearchX className="h-8 w-8 text-primary/60" />
+              </div>
+              <h3 className="text-lg font-bold text-foreground mb-2">No Records Found</h3>
+              <p className="text-sm text-muted-foreground mb-4 text-center max-w-sm">
+                {searchQuery || schemaFilter !== "All" 
+                  ? "No entities match your search criteria"
+                  : "No entities available in the system"}
+              </p>
+              {(searchQuery || schemaFilter !== "All") && (
+                <Button 
+                  variant="default" 
+                  size="sm"
+                  onClick={() => { setSearchQuery(""); setSchemaFilter("All"); }}
+                  className="rounded-lg shadow-md hover:shadow-lg transition-all"
+                >
+                  <SearchX className="mr-2 h-4 w-4" />
+                  Clear Filters
+                </Button>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-xl border border-border bg-card overflow-hidden shadow-lg">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/50 hover:bg-muted/50">
+                  <TableHead className="font-bold text-foreground">Name</TableHead>
+                  <TableHead className="font-bold text-foreground">Schema</TableHead>
+                  <TableHead className="font-bold text-foreground">Created</TableHead>
+                  <TableHead className="font-bold text-foreground">Updated</TableHead>
+                  <TableHead className="font-bold text-foreground">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginatedEntities.map((entity) => (
                 <TableRow key={entity.id} className="hover:bg-muted/30 transition-colors">
                   <TableCell className="font-semibold text-foreground">
                     {entity.schema === "Student" ? entity.fullName : entity.name}
@@ -200,11 +235,12 @@ const Registry = () => {
                   </TableCell>
                 </TableRow>
               ))}
-            </TableBody>
-          </Table>
-        </div>
+              </TableBody>
+            </Table>
+          </div>
+        )}
         
-        {totalPages > 1 && (
+        {filteredEntities.length > 0 && totalPages > 1 && (
           <div className="flex justify-end mt-4">
             <Pagination>
               <PaginationContent className="gap-1">
@@ -227,7 +263,7 @@ const Registry = () => {
                         "cursor-pointer rounded-lg border-2 transition-all",
                         currentPage === page 
                           ? "bg-primary text-primary-foreground border-primary hover:bg-primary/90" 
-                          : "border-border hover:bg-accent hover:border-primary/50 hover:text-primary"
+                          : "border-border hover:bg-primary/10 hover:border-primary hover:text-primary"
                       )}
                     >
                       {page}

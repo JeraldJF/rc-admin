@@ -14,6 +14,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
+const FormField = ({ children }: { children: React.ReactNode }) => (
+  <div className="space-y-2.5">{children}</div>
+);
+
 const EditEntity = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -79,10 +83,6 @@ const EditEntity = () => {
   const handleCancel = () => {
     navigate(-1);
   };
-
-  const FormField = ({ children }: { children: React.ReactNode }) => (
-    <div className="space-y-2.5">{children}</div>
-  );
 
   if (loading) {
     return (
