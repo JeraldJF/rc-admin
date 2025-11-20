@@ -162,10 +162,6 @@ const Login = () => {
               )}
             </Button>
           </form>
-
-          {/* <p className="text-center text-sm text-muted-foreground mt-6">
-            Demo accounts: Any email/password with valid format
-          </p> */}
         </CardContent>
       </Card>
     </div>

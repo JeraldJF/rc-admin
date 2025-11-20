@@ -12,6 +12,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { institutes } from "@/data/mockData";
 
 const FormField = ({ children }: { children: React.ReactNode }) => (
   <div className="space-y-2.5">{children}</div>
@@ -100,13 +101,6 @@ const ViewProfile = () => {
       navigate("/registry");
     }
   };
-
-  const institutes = [
-    "Royal University of Phnom Penh",
-    "National University of Management",
-    "Institute of Technology of Cambodia",
-    "Norton University",
-  ];
 
   return (
     <DashboardLayout>

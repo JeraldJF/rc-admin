@@ -38,7 +38,6 @@ const App = () => (
           <Route path="/claims" element={<ProtectedRoute><Claims /></ProtectedRoute>} />
           <Route path="/pending-claims" element={<ProtectedRoute><PendingClaims /></ProtectedRoute>} />
           <Route path="/approved-claims" element={<ProtectedRoute><ApprovedClaims /></ProtectedRoute>} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

@@ -46,16 +46,8 @@ export const Sidebar = () => {
               activeClassName="bg-primary/10 text-primary font-semibold shadow-sm"
             >
               <ClipboardList className="h-5 w-5" />
-              <span>Claims</span>
+              <span>Claim Registry</span>
             </NavLink>
-            {/* <NavLink
-              to="/profile"
-              className="flex items-center gap-3 px-4 py-3 rounded-lg text-foreground font-medium hover:bg-primary/5 hover:text-primary transition-all duration-200 mt-2"
-              activeClassName="bg-primary/10 text-primary font-semibold shadow-sm"
-            >
-              <User className="h-5 w-5" />
-              <span>View Profile</span>
-            </NavLink> */}
           </>
         ) : userRole === "teacher" ? (
           <>

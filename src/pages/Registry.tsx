@@ -2,11 +2,9 @@ import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Eye, Pencil, Trash2, Filter, Plus, Search, SearchX, Loader2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Eye, Pencil, Trash2, Plus, Search, SearchX, Loader2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Badge } from "@/components/ui/badge";
 import {
   Pagination,
   PaginationContent,
@@ -40,7 +38,6 @@ const Registry = () => {
   const [searchParams] = useSearchParams();
   const [entities, setEntities] = useState<Entity[]>(mockEntities);
   const [searchQuery, setSearchQuery] = useState("");
-  const [schemaFilter, setSchemaFilter] = useState("All");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -65,8 +62,7 @@ const Registry = () => {
   const filteredEntities = entities.filter((entity) => {
     const displayName = entity.schema === "Student" ? entity.fullName : entity.name;
     const matchesSearch = displayName?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesSchema = schemaFilter === "All" || entity.schema === schemaFilter;
-    return matchesSearch && matchesSchema;
+    return matchesSearch;
   });
 
   // Sort entities if sort field is set
@@ -140,20 +136,6 @@ const Registry = () => {
               className="pl-10 bg-card font-medium rounded-lg h-11 border-input"
             />
           </div>
-          {/* <Select value={schemaFilter} onValueChange={setSchemaFilter}>
-            <SelectTrigger className="w-40 bg-card font-semibold text-foreground rounded-lg h-11 border-input">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-popover">
-              <SelectItem value="All">All</SelectItem>
-              <SelectItem value="Student">Student</SelectItem>
-              <SelectItem value="Teacher">Teacher</SelectItem>
-            </SelectContent>
-          </Select> */}
-          {/* <Button variant="outline" className="gap-2 font-semibold rounded-lg h-11 border-input">
-            <Filter className="h-4 w-4" />
-            Filter
-          </Button> */}
           <Button onClick={() => navigate("/entity/new")} className="gap-2 font-semibold rounded-lg h-11">
             <Plus className="h-4 w-4" />
             {addButtonText}
@@ -168,15 +150,15 @@ const Registry = () => {
               </div>
               <h3 className="text-lg font-bold text-foreground mb-2">No Records Found</h3>
               <p className="text-sm text-muted-foreground mb-4 text-center max-w-sm">
-                {searchQuery || schemaFilter !== "All" 
+                {searchQuery 
                   ? "No entities match your search criteria"
                   : "No entities available in the system"}
               </p>
-              {(searchQuery || schemaFilter !== "All") && (
+              {searchQuery && (
                 <Button 
                   variant="default" 
                   size="sm"
-                  onClick={() => { setSearchQuery(""); setSchemaFilter("All"); }}
+                  onClick={() => setSearchQuery("")}
                   className="rounded-lg shadow-md hover:shadow-lg transition-all"
                 >
                   <SearchX className="mr-2 h-4 w-4" />

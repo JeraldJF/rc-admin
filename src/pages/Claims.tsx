@@ -3,7 +3,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Plus, ArrowUpDown, ArrowUp, ArrowDown, Trash2, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { mockClaims, Claim } from "@/data/claimsData";
+import { Claim } from "@/data/claimsData";
 import {
   Table,
   TableBody,
@@ -145,12 +145,6 @@ const Claims = () => {
     }, 2500);
   };
 
-  const handleCloseDialog = () => {
-    setShowRequestDialog(false);
-    setIsLoading(false);
-    setShowSuccess(false);
-  };
-
   const handleDelete = async () => {
     if (deleteId) {
       setIsDeleting(true);
@@ -172,7 +166,7 @@ const Claims = () => {
     <DashboardLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-foreground">Claim Management</h1>
+          <h1 className="text-2xl font-bold text-foreground">Claim Requests</h1>
           <Button onClick={handleRequestClaim} className="gap-2">
             <Plus className="h-4 w-4" />
             Request For Claim

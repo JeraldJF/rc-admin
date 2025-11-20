@@ -3,29 +3,14 @@ export interface Entity {
   schema: "Student" | "Teacher";
   created: string;
   updated: string;
-  
-  // Common fields
   dob: string;
   gender: string;
-  
-  // Student-specific fields
   fullName?: string;
   mobile?: string;
   email?: string;
   instituteName?: string;
-  
-  // Teacher-specific fields
   name?: string;
   subject?: string;
-  
-  // Legacy fields (keeping for backward compatibility)
-  name_english?: string;
-  father_name?: string;
-  mother_name?: string;
-  province?: string;
-  district?: string;
-  commune?: string;
-  village?: string;
 }
 
 export const mockEntities: Entity[] = [
@@ -40,7 +25,6 @@ export const mockEntities: Entity[] = [
     instituteName: "Royal University of Phnom Penh",
     created: "2025-11-18T10:30:00Z",
     updated: "2025-11-19T08:15:00Z",
-    name_english: "Thea Monorith",
   },
   {
     id: "2",
@@ -53,7 +37,6 @@ export const mockEntities: Entity[] = [
     instituteName: "National University of Management",
     created: "2025-11-17T09:15:00Z",
     updated: "2025-11-18T14:20:00Z",
-    name_english: "Sophia Chen",
   },
   {
     id: "3",
@@ -66,7 +49,6 @@ export const mockEntities: Entity[] = [
     instituteName: "International School of Phnom Penh",
     created: "2025-11-15T08:00:00Z",
     updated: "2025-11-18T16:30:00Z",
-    name_english: "David Williams",
   },
   {
     id: "4",
@@ -79,7 +61,6 @@ export const mockEntities: Entity[] = [
     instituteName: "Siem Reap University",
     created: "2025-11-10T13:45:00Z",
     updated: "2025-11-19T10:15:00Z",
-    name_english: "Emma Thompson",
   },
   {
     id: "5",
@@ -92,7 +73,6 @@ export const mockEntities: Entity[] = [
     instituteName: "Norton University",
     created: "2025-11-05T07:30:00Z",
     updated: "2025-11-17T15:00:00Z",
-    name_english: "Michael Rodriguez",
   },
   {
     id: "6",
@@ -105,7 +85,6 @@ export const mockEntities: Entity[] = [
     instituteName: "Battambang University",
     created: "2025-10-28T11:00:00Z",
     updated: "2025-11-16T09:30:00Z",
-    name_english: "Olivia Martinez",
   },
   {
     id: "7",
@@ -118,7 +97,6 @@ export const mockEntities: Entity[] = [
     instituteName: "Pannasastra University",
     created: "2025-10-15T10:15:00Z",
     updated: "2025-11-12T12:45:00Z",
-    name_english: "James Anderson",
   },
   {
     id: "8",
@@ -131,7 +109,6 @@ export const mockEntities: Entity[] = [
     instituteName: "Institute of Technology of Cambodia",
     created: "2025-09-20T14:20:00Z",
     updated: "2025-11-14T16:00:00Z",
-    name_english: "Ava Brown",
   },
   {
     id: "9",
@@ -144,7 +121,6 @@ export const mockEntities: Entity[] = [
     instituteName: "Build Bright University",
     created: "2025-08-25T09:45:00Z",
     updated: "2025-11-10T13:15:00Z",
-    name_english: "Benjamin Lee",
   },
   {
     id: "10",
@@ -157,7 +133,6 @@ export const mockEntities: Entity[] = [
     instituteName: "Cambodian Mekong University",
     created: "2025-07-18T08:30:00Z",
     updated: "2025-11-08T11:45:00Z",
-    name_english: "Isabella Garcia",
   },
   {
     id: "11",
@@ -170,7 +145,6 @@ export const mockEntities: Entity[] = [
     instituteName: "Royal University of Phnom Penh",
     created: "2025-06-10T09:20:00Z",
     updated: "2025-11-15T14:30:00Z",
-    name_english: "Sarah Mitchell",
   },
   {
     id: "12",
@@ -183,7 +157,6 @@ export const mockEntities: Entity[] = [
     instituteName: "Institute of Technology of Cambodia",
     created: "2025-05-22T11:15:00Z",
     updated: "2025-11-18T09:45:00Z",
-    name_english: "Lucas Nguyen",
   },
   {
     id: "13",
@@ -196,7 +169,6 @@ export const mockEntities: Entity[] = [
     instituteName: "Norton University",
     created: "2025-04-15T10:30:00Z",
     updated: "2025-11-17T16:20:00Z",
-    name_english: "Mia Johnson",
   },
   {
     id: "14",
@@ -209,7 +181,6 @@ export const mockEntities: Entity[] = [
     instituteName: "National University of Management",
     created: "2025-03-08T08:45:00Z",
     updated: "2025-11-16T13:10:00Z",
-    name_english: "Robert Kim",
   },
   {
     id: "15",
@@ -222,7 +193,6 @@ export const mockEntities: Entity[] = [
     instituteName: "Build Bright University",
     created: "2025-02-19T12:00:00Z",
     updated: "2025-11-14T10:55:00Z",
-    name_english: "Charlotte Davis",
   },
   {
     id: "16",
@@ -235,7 +205,6 @@ export const mockEntities: Entity[] = [
     instituteName: "Pannasastra University",
     created: "2025-01-12T09:30:00Z",
     updated: "2025-11-13T15:40:00Z",
-    name_english: "Jennifer Park",
   },
   {
     id: "17",
@@ -248,7 +217,6 @@ export const mockEntities: Entity[] = [
     instituteName: "Siem Reap University",
     created: "2024-12-05T14:15:00Z",
     updated: "2025-11-12T11:25:00Z",
-    name_english: "Ethan Wilson",
   },
   {
     id: "18",
@@ -261,7 +229,6 @@ export const mockEntities: Entity[] = [
     instituteName: "Battambang University",
     created: "2024-11-18T10:45:00Z",
     updated: "2025-11-11T09:15:00Z",
-    name_english: "Amelia Taylor",
   },
   {
     id: "19",
@@ -274,7 +241,6 @@ export const mockEntities: Entity[] = [
     instituteName: "International School of Phnom Penh",
     created: "2024-10-25T11:20:00Z",
     updated: "2025-11-10T14:50:00Z",
-    name_english: "Daniel Moore",
   },
   {
     id: "20",
@@ -287,7 +253,6 @@ export const mockEntities: Entity[] = [
     instituteName: "Cambodian Mekong University",
     created: "2024-09-30T13:35:00Z",
     updated: "2025-11-09T16:05:00Z",
-    name_english: "Harper Anderson",
   },
   {
     id: "21",
@@ -300,7 +265,6 @@ export const mockEntities: Entity[] = [
     instituteName: "Royal University of Phnom Penh",
     created: "2024-08-14T09:50:00Z",
     updated: "2025-11-08T12:30:00Z",
-    name_english: "Emily White",
   },
   {
     id: "22",
@@ -313,7 +277,6 @@ export const mockEntities: Entity[] = [
     instituteName: "Norton University",
     created: "2024-07-08T15:10:00Z",
     updated: "2025-11-07T10:20:00Z",
-    name_english: "Alexander Martinez",
   },
   {
     id: "23",
@@ -326,7 +289,6 @@ export const mockEntities: Entity[] = [
     instituteName: "Institute of Technology of Cambodia",
     created: "2024-06-12T11:40:00Z",
     updated: "2025-11-06T13:45:00Z",
-    name_english: "Evelyn Thompson",
   },
   {
     id: "24",
@@ -339,7 +301,6 @@ export const mockEntities: Entity[] = [
     instituteName: "Build Bright University",
     created: "2024-05-20T10:25:00Z",
     updated: "2025-11-05T15:15:00Z",
-    name_english: "Christopher Lee",
   },
   {
     id: "25",
@@ -352,60 +313,8 @@ export const mockEntities: Entity[] = [
     instituteName: "National University of Management",
     created: "2024-04-03T12:55:00Z",
     updated: "2025-11-04T11:35:00Z",
-    name_english: "Abigail Harris",
   },
 ];
-
-export const provinces = [
-  "Banteay Meanchey",
-  "Battambang",
-  "Kampong Cham",
-  "Kampong Chhnang",
-  "Kampong Speu",
-  "Kampong Thom",
-  "Kampot",
-  "Kandal",
-  "Kep",
-  "Koh Kong",
-  "Kratié",
-  "Mondulkiri",
-  "Oddar Meanchey",
-  "Pailin",
-  "Phnom Penh",
-  "Preah Vihear",
-  "Prey Veng",
-  "Pursat",
-  "Ratanakiri",
-  "Siem Reap",
-  "Sihanoukville",
-  "Stung Treng",
-  "Svay Rieng",
-  "Takéo",
-  "Tbong Khmum",
-];
-
-export const districts: Record<string, string[]> = {
-  Kandal: ["Kandal Stueng", "Kien Svay", "Khsach Kandal", "Kaoh Thum", "Lvea Aem", "Mukh Kampul", "Angk Snuol", "Ponhea Lueu", "S'ang", "Ta Khmau"],
-  "Phnom Penh": ["Chamkar Mon", "Doun Penh", "Prampir Meakkakra", "Tuol Kouk", "Dangkao", "Mean Chey", "Ruessei Kaev", "Sen Sok", "Pou Senchey", "Chroy Changvar", "Prek Pnov", "Chbar Ampov"],
-  "Siem Reap": ["Siem Reap", "Angkor Chum", "Angkor Thum", "Banteay Srei", "Chi Kraeng", "Kralanh", "Puok", "Prasat Bakong", "Soutr Nikom", "Srei Snam", "Svay Leu", "Varin"],
-  Battambang: ["Battambang", "Banan", "Thma Koul", "Bavel", "Aek Phnum", "Moung Ruessei", "Rotanak Mondol", "Sangkae", "Samlout", "Sampov Loun", "Phnum Proek", "Kamrieng", "Koas Krala", "Rukhak Kiri"],
-};
-
-export const communes: Record<string, string[]> = {
-  "Ta Khmau": ["Doeum Mien", "Preaek Lieb", "Preaek Ta Sek", "Preaek Ta Nung", "Roluos", "Samraong", "Ta Khmau"],
-  "Kien Svay": ["Kokir", "Preaek Ta Kov", "Preaek Anhchanh", "Preaek Phnov", "Roluos", "Svay Rolum"],
-  "Chamkar Mon": ["Tonle Bassac", "Boeung Keng Kang I", "Boeung Keng Kang II", "Boeung Keng Kang III", "Olympic", "Tumnob Tuek"],
-  Siem_Reap: ["Sala Kamraeuk", "Siem Reab", "Srangae", "Svay Dangkum", "Wat Bo"],
-  Battambang: ["Ratanak", "Chamkar Samraong", "Prek Mohatep", "Prek Preah Sdach", "Rotanak", "Svaydangkum", "Thmei", "Wat Kor"],
-};
-
-export const villages: Record<string, string[]> = {
-  "Doeum Mien": ["Prek Ta Pov", "Doeum Mien", "Preaek Ambel"],
-  Kokir: ["Prey Veng", "Kokir Leu", "Kokir Kraom"],
-  "Tonle Bassac": ["Boeng Keng Kang", "Toul Svay Prey I", "Toul Svay Prey II"],
-  "Sala Kamraeuk": ["Svay Dangkum", "Sala Kamraeuk", "Trapeang Ses"],
-  Ratanak: ["Kdol Ta Hen", "Pralay", "Ratanak"],
-};
 
 export const institutes = [
   "Royal University of Phnom Penh",

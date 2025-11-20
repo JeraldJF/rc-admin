@@ -5,8 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, Pencil, Eye } from "lucide-react";
 import { mockEntities, Entity } from "@/data/mockData";
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
 
 const ViewEntity = () => {
   const { id } = useParams();
