@@ -41,7 +41,7 @@ const Registry = () => {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [isDeleting, setIsDeleting] = useState(false);
-  const recordsPerPage = 5;
+  const recordsPerPage = 10;
 
   // Handle search query from URL parameters
   useEffect(() => {
