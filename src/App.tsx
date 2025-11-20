@@ -9,6 +9,9 @@ import ViewEntity from "./pages/ViewEntity";
 import EditEntity from "./pages/EditEntity";
 import AddEntity from "./pages/AddEntity";
 import ViewProfile from "./pages/ViewProfile";
+import Claims from "./pages/Claims";
+import PendingClaims from "./pages/PendingClaims";
+import ApprovedClaims from "./pages/ApprovedClaims";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +35,9 @@ const App = () => (
           <Route path="/entity/:id" element={<ProtectedRoute><ViewEntity /></ProtectedRoute>} />
           <Route path="/entity/:id/edit" element={<ProtectedRoute><EditEntity /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><ViewProfile /></ProtectedRoute>} />
+          <Route path="/claims" element={<ProtectedRoute><Claims /></ProtectedRoute>} />
+          <Route path="/pending-claims" element={<ProtectedRoute><PendingClaims /></ProtectedRoute>} />
+          <Route path="/approved-claims" element={<ProtectedRoute><ApprovedClaims /></ProtectedRoute>} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

@@ -8,7 +8,10 @@ interface NavLinkProps extends LinkProps {
 export const NavLink = ({ to, className, activeClassName, children, ...props }: NavLinkProps) => {
   const location = useLocation();
   const isActive = location.pathname === to || 
-                   (to === "/registry" && location.pathname.startsWith("/entity"));
+                   (to === "/registry" && location.pathname.startsWith("/entity")) ||
+                   (to === "/claims" && location.pathname.startsWith("/claim")) ||
+                   (to === "/pending-claims" && location.pathname.startsWith("/pending-claim")) ||
+                   (to === "/approved-claims" && location.pathname.startsWith("/approved-claim"));
 
   return (
     <Link
