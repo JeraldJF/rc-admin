@@ -19,6 +19,7 @@ interface TopBarProps {
 export const TopBar = ({ title }: TopBarProps) => {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [username, setUsername] = useState("admin");
+  const [userRole, setUserRole] = useState("admin");
   const [language, setLanguage] = useState("English");
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
@@ -32,6 +33,22 @@ export const TopBar = ({ title }: TopBarProps) => {
                         location.pathname.match(/^\/entity\/[^/]+\/edit$/);
 
   const isProfilePage = location.pathname === "/profile";
+
+  // Get role display name
+  const getRoleDisplay = (role: string) => {
+    if (role === "admin") return "Administrator";
+    if (role === "teacher") return "Teacher";
+    if (role === "student") return "Student";
+    return "User";
+  };
+
+  // Get search placeholder based on role
+  const getSearchPlaceholder = (role: string) => {
+    if (role === "admin") return "Search for teachers...";
+    if (role === "teacher") return "Search for students...";
+    if (role === "student") return "Search for claims...";
+    return "Search...";
+  };
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
@@ -51,6 +68,9 @@ export const TopBar = ({ title }: TopBarProps) => {
       const emailUsername = userEmail.split("@")[0];
       setUsername(emailUsername);
     }
+    
+    const role = localStorage.getItem("userRole") || "admin";
+    setUserRole(role);
   }, [theme]);
 
   const toggleTheme = () => {
@@ -81,7 +101,7 @@ export const TopBar = ({ title }: TopBarProps) => {
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             )}
             <Input
-              placeholder="Search for entities..."
+              placeholder={getSearchPlaceholder(userRole)}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               disabled={isSearching}
@@ -147,7 +167,7 @@ export const TopBar = ({ title }: TopBarProps) => {
                 </div>
                 <div className="text-left">
                   <p className="text-sm font-semibold text-foreground">{username}</p>
-                  <p className="text-xs font-medium text-muted-foreground">Administrator</p>
+                  <p className="text-xs font-medium text-muted-foreground">{getRoleDisplay(userRole)}</p>
                 </div>
               </button>
             </DropdownMenuTrigger>

@@ -13,6 +13,12 @@ const ViewEntity = () => {
   const navigate = useNavigate();
   const [entity, setEntity] = useState<Entity | null>(null);
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState<string>("admin");
+
+  useEffect(() => {
+    const role = localStorage.getItem("userRole") || "admin";
+    setUserRole(role);
+  }, []);
 
   useEffect(() => {
     // Simulate loading
@@ -53,6 +59,8 @@ const ViewEntity = () => {
     </div>
   );
 
+  const pageTitle = userRole === "admin" ? "View Teacher Details" : "View Student Details";
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -62,7 +70,7 @@ const ViewEntity = () => {
             <span className="font-semibold">Back</span>
           </Button>
           <div className="h-6 w-px bg-border"></div>
-          <h1 className="text-2xl font-bold text-foreground">View Entity</h1>
+          <h1 className="text-2xl font-bold text-foreground">{pageTitle}</h1>
         </div>
 
         <Card className="shadow-lg border-border rounded-xl overflow-hidden">
@@ -73,17 +81,6 @@ const ViewEntity = () => {
                 <h2 className="text-2xl font-bold text-foreground">
                   {entity.schema === "Student" ? entity.fullName : entity.name}
                 </h2>
-                <Badge 
-                  variant="outline" 
-                  className={cn(
-                    "text-sm font-semibold px-3 py-1 border-2",
-                    entity.schema === "Student"
-                      ? "border-green-500 text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/30"
-                      : "border-blue-500 text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30"
-                  )}
-                >
-                  {entity.schema}
-                </Badge>
               </div>
               <Button onClick={() => navigate(`/entity/${id}/edit`)} className="gap-2 font-semibold rounded-lg">
                 <Pencil className="h-4 w-4" />

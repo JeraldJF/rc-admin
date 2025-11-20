@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Eye, Pencil, Trash2, Filter, Plus, Search, SearchX, Loader2 } from "lucide-react";
+import { Eye, Pencil, Trash2, Filter, Plus, Search, SearchX, Loader2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -31,6 +31,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 
+type SortOrder = "asc" | "desc" | null;
+type SortField = "created" | "updated" | null;
+
 const Registry = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -42,6 +45,8 @@ const Registry = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [isDeleting, setIsDeleting] = useState(false);
   const [userRole, setUserRole] = useState<string>("admin");
+  const [sortField, setSortField] = useState<SortField>(null);
+  const [sortOrder, setSortOrder] = useState<SortOrder>(null);
   const recordsPerPage = 10;
 
   useEffect(() => {
@@ -64,9 +69,40 @@ const Registry = () => {
     return matchesSearch && matchesSchema;
   });
 
-  const totalPages = Math.ceil(filteredEntities.length / recordsPerPage);
+  // Sort entities if sort field is set
+  const sortedEntities = [...filteredEntities].sort((a, b) => {
+    if (!sortField || !sortOrder) return 0;
+    
+    const dateA = new Date(a[sortField]).getTime();
+    const dateB = new Date(b[sortField]).getTime();
+    
+    return sortOrder === "desc" ? dateB - dateA : dateA - dateB;
+  });
+
+  const totalPages = Math.ceil(sortedEntities.length / recordsPerPage);
   const startIndex = (currentPage - 1) * recordsPerPage;
-  const paginatedEntities = filteredEntities.slice(startIndex, startIndex + recordsPerPage);
+  const paginatedEntities = sortedEntities.slice(startIndex, startIndex + recordsPerPage);
+
+  const toggleSort = (field: "created" | "updated") => {
+    if (sortField === field) {
+      // Cycle through: desc -> asc -> null
+      if (sortOrder === "desc") setSortOrder("asc");
+      else if (sortOrder === "asc") {
+        setSortOrder(null);
+        setSortField(null);
+      }
+    } else {
+      setSortField(field);
+      setSortOrder("desc");
+    }
+  };
+
+  const getSortIcon = (field: "created" | "updated") => {
+    if (sortField !== field) return <ArrowUpDown className="h-4 w-4" />;
+    if (sortOrder === "desc") return <ArrowDown className="h-4 w-4" />;
+    if (sortOrder === "asc") return <ArrowUp className="h-4 w-4" />;
+    return <ArrowUpDown className="h-4 w-4" />;
+  };
 
   const handleDelete = async () => {
     if (deleteId) {
@@ -87,23 +123,24 @@ const Registry = () => {
   };
 
   const addButtonText = userRole === "admin" ? "Add Teacher" : "Add Student";
+  const pageTitle = userRole === "admin" ? "Teacher Management" : "Student Management";
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <h1 className="text-3xl font-bold text-foreground tracking-tight">Registry Management</h1>
+        <h1 className="text-3xl font-bold text-foreground tracking-tight">{pageTitle}</h1>
         
         <div className="flex items-center gap-4 w-full">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search entities..."
+              placeholder={userRole === "admin" ? "Search teachers..." : "Search students..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 bg-card font-medium rounded-lg h-11 border-input"
             />
           </div>
-          <Select value={schemaFilter} onValueChange={setSchemaFilter}>
+          {/* <Select value={schemaFilter} onValueChange={setSchemaFilter}>
             <SelectTrigger className="w-40 bg-card font-semibold text-foreground rounded-lg h-11 border-input">
               <SelectValue />
             </SelectTrigger>
@@ -112,7 +149,7 @@ const Registry = () => {
               <SelectItem value="Student">Student</SelectItem>
               <SelectItem value="Teacher">Teacher</SelectItem>
             </SelectContent>
-          </Select>
+          </Select> */}
           {/* <Button variant="outline" className="gap-2 font-semibold rounded-lg h-11 border-input">
             <Filter className="h-4 w-4" />
             Filter
@@ -154,9 +191,25 @@ const Registry = () => {
               <TableHeader>
               <TableRow className="bg-muted/50 hover:bg-muted/50">
                 <TableHead className="font-bold text-foreground">Name</TableHead>
-                <TableHead className="font-bold text-foreground">Gender</TableHead>
-                <TableHead className="font-bold text-foreground">Mobile</TableHead>
-                <TableHead className="font-bold text-foreground">Email</TableHead>
+                <TableHead className="font-bold text-foreground">Institute Name</TableHead>
+                <TableHead className="font-bold text-foreground">
+                  <button
+                    onClick={() => toggleSort("created")}
+                    className="flex items-center gap-2 hover:text-primary transition-colors font-bold"
+                  >
+                    Created On
+                    {getSortIcon("created")}
+                  </button>
+                </TableHead>
+                <TableHead className="font-bold text-foreground">
+                  <button
+                    onClick={() => toggleSort("updated")}
+                    className="flex items-center gap-2 hover:text-primary transition-colors font-bold"
+                  >
+                    Updated On
+                    {getSortIcon("updated")}
+                  </button>
+                </TableHead>
                 <TableHead className="font-bold text-foreground">Actions</TableHead>
               </TableRow>
               </TableHeader>
@@ -166,9 +219,35 @@ const Registry = () => {
                   <TableCell className="font-semibold text-foreground">
                     {entity.schema === "Student" ? entity.fullName : entity.name}
                   </TableCell>
-                  <TableCell>{entity.gender}</TableCell>
-                  <TableCell className="font-medium">{entity.mobile}</TableCell>
-                  <TableCell className="font-medium">{entity.email}</TableCell>
+                  <TableCell className="font-medium">{entity.instituteName}</TableCell>
+                  <TableCell>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="cursor-help">
+                            {formatDistanceToNow(new Date(entity.created), { addSuffix: true })}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{new Date(entity.created).toLocaleString()}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </TableCell>
+                  <TableCell>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="cursor-help">
+                            {formatDistanceToNow(new Date(entity.updated), { addSuffix: true })}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{new Date(entity.updated).toLocaleString()}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </TableCell>
                   <TableCell>
                     <TooltipProvider>
                       <div className="flex gap-2">
@@ -221,9 +300,9 @@ const Registry = () => {
         )}
         
         {filteredEntities.length > 0 && totalPages > 1 && (
-          <div className="flex justify-end mt-4">
+          <div className="flex justify-center mt-8">
             <Pagination>
-              <PaginationContent className="gap-1">
+              <PaginationContent className="gap-2">
                 <PaginationItem>
                   <PaginationPrevious 
                     onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}

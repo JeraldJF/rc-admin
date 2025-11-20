@@ -77,7 +77,7 @@ const Login = () => {
             <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
               <Fingerprint className="h-12 w-12 text-primary" />
             </div>
-            <h1 className="text-3xl font-bold text-foreground">RC Admin</h1>
+            <h1 className="text-3xl font-bold text-foreground">RC Management</h1>
             <p className="text-muted-foreground mt-2">Sign in to your account</p>
           </div>
 
@@ -113,15 +113,15 @@ const Login = () => {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-foreground font-semibold">Role</Label>
-              <div className="flex gap-3">
+              <Label className="text-foreground font-semibold">Sign in as</Label>
+              <div className="flex gap-0 bg-muted p-1 rounded-lg">
                 <button
                   type="button"
                   onClick={() => setRole("admin")}
-                  className={`flex-1 py-2.5 px-4 rounded-lg font-medium transition-all ${
+                  className={`flex-1 py-2.5 px-4 rounded-md font-medium transition-all ${
                     role === "admin"
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "bg-muted text-muted-foreground hover:bg-muted/80"
+                      ? "bg-blue-600 text-white shadow-md"
+                      : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   Admin
@@ -129,10 +129,10 @@ const Login = () => {
                 <button
                   type="button"
                   onClick={() => setRole("teacher")}
-                  className={`flex-1 py-2.5 px-4 rounded-lg font-medium transition-all ${
+                  className={`flex-1 py-2.5 px-4 rounded-md font-medium transition-all ${
                     role === "teacher"
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "bg-muted text-muted-foreground hover:bg-muted/80"
+                      ? "bg-blue-600 text-white shadow-md"
+                      : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   Teacher
@@ -140,10 +140,10 @@ const Login = () => {
                 <button
                   type="button"
                   onClick={() => setRole("student")}
-                  className={`flex-1 py-2.5 px-4 rounded-lg font-medium transition-all ${
+                  className={`flex-1 py-2.5 px-4 rounded-md font-medium transition-all ${
                     role === "student"
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "bg-muted text-muted-foreground hover:bg-muted/80"
+                      ? "bg-blue-600 text-white shadow-md"
+                      : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   Student
@@ -151,7 +151,7 @@ const Login = () => {
               </div>
             </div>
 
-            <Button type="submit" className="w-full mt-6 h-12 text-base font-medium" disabled={isLoading}>
+            <Button type="submit" className="w-full mt-6 h-12 text-base font-medium bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/30" disabled={isLoading}>
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
@@ -163,9 +163,9 @@ const Login = () => {
             </Button>
           </form>
 
-          <p className="text-center text-sm text-muted-foreground mt-6">
+          {/* <p className="text-center text-sm text-muted-foreground mt-6">
             Demo accounts: Any email/password with valid format
-          </p>
+          </p> */}
         </CardContent>
       </Card>
     </div>

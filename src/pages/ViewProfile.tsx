@@ -22,6 +22,7 @@ const ViewProfile = () => {
   const { toast } = useToast();
   const [username, setUsername] = useState("admin");
   const [isSaving, setIsSaving] = useState(false);
+  const [userRole, setUserRole] = useState<string>("");
   
   const [formData, setFormData] = useState({
     fullName: "admin",
@@ -35,12 +36,23 @@ const ViewProfile = () => {
 
   useEffect(() => {
     const userEmail = localStorage.getItem("userEmail");
+    const role = localStorage.getItem("userRole") || "admin";
+    setUserRole(role);
+    
     if (userEmail) {
       const emailUsername = userEmail.split("@")[0];
       setUsername(emailUsername);
       setFormData(prev => ({ ...prev, fullName: emailUsername }));
     }
   }, []);
+
+  // Get role display name
+  const getRoleDisplay = (role: string) => {
+    if (role === "admin") return "Administrator";
+    if (role === "teacher") return "Teacher";
+    if (role === "student") return "Student";
+    return "User";
+  };
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -69,13 +81,24 @@ const ViewProfile = () => {
         description: "Your profile has been saved.",
         variant: "success",
       });
-      navigate("/registry");
+      
+      // Navigate based on role
+      if (userRole === "student") {
+        navigate("/claims");
+      } else {
+        navigate("/registry");
+      }
       setIsSaving(false);
     }
   };
 
   const handleCancel = () => {
-    navigate("/registry");
+    // Navigate based on role
+    if (userRole === "student") {
+      navigate("/claims");
+    } else {
+      navigate("/registry");
+    }
   };
 
   const institutes = [
@@ -95,7 +118,7 @@ const ViewProfile = () => {
             </div>
             <div>
               <h1 className="text-3xl font-bold text-foreground">{username}</h1>
-              <p className="text-sm text-muted-foreground mt-1">Administrator</p>
+              <p className="text-sm text-muted-foreground mt-1">{getRoleDisplay(userRole)}</p>
             </div>
           </div>
         </div>

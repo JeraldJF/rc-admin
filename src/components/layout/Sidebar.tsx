@@ -33,7 +33,7 @@ export const Sidebar = () => {
           <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center shadow-sm">
             <Database className="h-5 w-5 text-primary-foreground" />
           </div>
-          <h1 className="text-xl font-bold text-foreground">RC Admin</h1>
+          <h1 className="text-xl font-bold text-foreground">RC Management</h1>
         </div>
       </div>
       
@@ -48,14 +48,14 @@ export const Sidebar = () => {
               <ClipboardList className="h-5 w-5" />
               <span>Claims</span>
             </NavLink>
-            <NavLink
+            {/* <NavLink
               to="/profile"
               className="flex items-center gap-3 px-4 py-3 rounded-lg text-foreground font-medium hover:bg-primary/5 hover:text-primary transition-all duration-200 mt-2"
               activeClassName="bg-primary/10 text-primary font-semibold shadow-sm"
             >
               <User className="h-5 w-5" />
               <span>View Profile</span>
-            </NavLink>
+            </NavLink> */}
           </>
         ) : userRole === "teacher" ? (
           <>
