@@ -12,6 +12,7 @@ const Login = () => {
   const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState<"admin" | "teacher" | "student">("admin");
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
 
@@ -51,12 +52,19 @@ const Login = () => {
       
       localStorage.setItem("isLoggedIn", "true");
       localStorage.setItem("userEmail", email);
+      localStorage.setItem("userRole", role);
       toast({
         title: "🎉 Login successful",
         description: "Welcome back!",
         variant: "success",
       });
-      navigate("/registry");
+      
+      // Navigate based on role
+      if (role === "student") {
+        navigate("/claims");
+      } else {
+        navigate("/registry");
+      }
       setIsLoading(false);
     }
   };
@@ -102,6 +110,45 @@ const Login = () => {
               {errors.password && (
                 <p className="text-sm text-destructive">{errors.password}</p>
               )}
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-foreground font-semibold">Role</Label>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setRole("admin")}
+                  className={`flex-1 py-2.5 px-4 rounded-lg font-medium transition-all ${
+                    role === "admin"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  }`}
+                >
+                  Admin
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRole("teacher")}
+                  className={`flex-1 py-2.5 px-4 rounded-lg font-medium transition-all ${
+                    role === "teacher"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  }`}
+                >
+                  Teacher
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRole("student")}
+                  className={`flex-1 py-2.5 px-4 rounded-lg font-medium transition-all ${
+                    role === "student"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  }`}
+                >
+                  Student
+                </button>
+              </div>
             </div>
 
             <Button type="submit" className="w-full mt-6 h-12 text-base font-medium" disabled={isLoading}>

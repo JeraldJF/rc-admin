@@ -41,7 +41,13 @@ const Registry = () => {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [userRole, setUserRole] = useState<string>("admin");
   const recordsPerPage = 10;
+
+  useEffect(() => {
+    const role = localStorage.getItem("userRole") || "admin";
+    setUserRole(role);
+  }, []);
 
   // Handle search query from URL parameters
   useEffect(() => {
@@ -80,6 +86,8 @@ const Registry = () => {
     }
   };
 
+  const addButtonText = userRole === "admin" ? "Add Teacher" : "Add Student";
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -111,7 +119,7 @@ const Registry = () => {
           </Button> */}
           <Button onClick={() => navigate("/entity/new")} className="gap-2 font-semibold rounded-lg h-11">
             <Plus className="h-4 w-4" />
-            Add Entity
+            {addButtonText}
           </Button>
         </div>
 
@@ -144,13 +152,13 @@ const Registry = () => {
           <div className="rounded-xl border border-border bg-card overflow-hidden shadow-lg">
             <Table>
               <TableHeader>
-                <TableRow className="bg-muted/50 hover:bg-muted/50">
-                  <TableHead className="font-bold text-foreground">Name</TableHead>
-                  <TableHead className="font-bold text-foreground">Schema</TableHead>
-                  <TableHead className="font-bold text-foreground">Created</TableHead>
-                  <TableHead className="font-bold text-foreground">Updated</TableHead>
-                  <TableHead className="font-bold text-foreground">Actions</TableHead>
-                </TableRow>
+              <TableRow className="bg-muted/50 hover:bg-muted/50">
+                <TableHead className="font-bold text-foreground">Name</TableHead>
+                <TableHead className="font-bold text-foreground">Gender</TableHead>
+                <TableHead className="font-bold text-foreground">Mobile</TableHead>
+                <TableHead className="font-bold text-foreground">Email</TableHead>
+                <TableHead className="font-bold text-foreground">Actions</TableHead>
+              </TableRow>
               </TableHeader>
               <TableBody>
                 {paginatedEntities.map((entity) => (
@@ -158,43 +166,9 @@ const Registry = () => {
                   <TableCell className="font-semibold text-foreground">
                     {entity.schema === "Student" ? entity.fullName : entity.name}
                   </TableCell>
-                  <TableCell>
-                    <Badge 
-                      variant="outline" 
-                      className={cn(
-                        "border-2",
-                        entity.schema === "Student" 
-                          ? "border-green-500 text-green-700 bg-green-50 dark:bg-green-950/30" 
-                          : "border-blue-500 text-blue-700 bg-blue-50 dark:bg-blue-950/30"
-                      )}
-                    >
-                      {entity.schema}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="font-medium text-muted-foreground">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger className="cursor-help">
-                          {formatDistanceToNow(new Date(entity.created), { addSuffix: true })}
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          {new Date(entity.created).toLocaleString()}
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </TableCell>
-                  <TableCell className="font-medium text-muted-foreground">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger className="cursor-help">
-                          {formatDistanceToNow(new Date(entity.updated), { addSuffix: true })}
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          {new Date(entity.updated).toLocaleString()}
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </TableCell>
+                  <TableCell>{entity.gender}</TableCell>
+                  <TableCell className="font-medium">{entity.mobile}</TableCell>
+                  <TableCell className="font-medium">{entity.email}</TableCell>
                   <TableCell>
                     <TooltipProvider>
                       <div className="flex gap-2">

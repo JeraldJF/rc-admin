@@ -26,6 +26,7 @@ const EditEntity = () => {
   
   const [loading, setLoading] = useState(!isNew);
   const [isSaving, setIsSaving] = useState(false);
+  const [userRole, setUserRole] = useState<string>("admin");
   const [formData, setFormData] = useState<Partial<Entity>>({
     schema: "Student",
     gender: "Male",
@@ -33,6 +34,17 @@ const EditEntity = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
+    const role = localStorage.getItem("userRole") || "admin";
+    setUserRole(role);
+    
+    // Set default schema based on role for new entities
+    if (isNew) {
+      setFormData(prev => ({
+        ...prev,
+        schema: role === "admin" ? "Teacher" : "Student"
+      }));
+    }
+    
     if (!isNew) {
       setTimeout(() => {
         const found = mockEntities.find((e) => e.id === id);
@@ -131,7 +143,7 @@ const EditEntity = () => {
                       });
                       setErrors({});
                     }}
-                    disabled={false}
+                    disabled={!isNew}
                   >
                     <SelectTrigger className={`bg-background border-input hover:border-primary/60 focus:border-primary transition-all duration-200 rounded-lg h-11 ${errors.schema ? "border-destructive ring-2 ring-destructive/20" : ""}`}>
                       <SelectValue placeholder="Select schema" />
