@@ -102,6 +102,10 @@ const ViewProfile = () => {
     }
   };
 
+  const isAdmin = userRole === "admin";
+  const isReadOnly = isAdmin;
+  const isStudent = userRole === "student";
+
   return (
     <DashboardLayout>
       <div className="space-y-6 max-w-5xl mx-auto">
@@ -123,26 +127,28 @@ const ViewProfile = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField>
                   <Label htmlFor="fullName" className="text-sm font-semibold text-foreground">
-                    Full Name <span className="text-destructive">*</span>
+                    Full Name {!isReadOnly && <span className="text-destructive">*</span>}
                   </Label>
                   <Input
                     id="fullName"
                     value={formData.fullName}
                     onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                    className={`rounded-lg h-11 ${errors.fullName ? "border-destructive ring-2 ring-destructive/20" : ""}`}
+                    className={`rounded-lg h-11 font-medium ${isReadOnly ? "bg-muted/50 text-foreground cursor-not-allowed" : ""} ${errors.fullName ? "border-destructive ring-2 ring-destructive/20" : ""}`}
                     placeholder="Enter full name"
+                    disabled={isReadOnly}
                   />
                   {errors.fullName && <p className="text-sm font-medium text-destructive">{errors.fullName}</p>}
                 </FormField>
                 <FormField>
                   <Label htmlFor="gender" className="text-sm font-semibold text-foreground">
-                    Gender <span className="text-destructive">*</span>
+                    Gender {!isReadOnly && <span className="text-destructive">*</span>}
                   </Label>
                   <Select
                     value={formData.gender}
                     onValueChange={(value) => setFormData({ ...formData, gender: value })}
+                    disabled={isReadOnly}
                   >
-                    <SelectTrigger className={`rounded-lg h-11 ${errors.gender ? "border-destructive ring-2 ring-destructive/20" : ""}`}>
+                    <SelectTrigger className={`rounded-lg h-11 font-medium ${isReadOnly ? "bg-muted/50 text-foreground cursor-not-allowed" : ""} ${errors.gender ? "border-destructive ring-2 ring-destructive/20" : ""}`}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-popover">
@@ -158,14 +164,16 @@ const ViewProfile = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField>
                   <Label className="text-sm font-semibold text-foreground">
-                    Date of Birth <span className="text-destructive">*</span>
+                    Date of Birth {!isReadOnly && <span className="text-destructive">*</span>}
                   </Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
+                        disabled={isReadOnly}
                         className={cn(
-                          "w-full justify-start text-left font-normal rounded-lg h-11",
+                          "w-full justify-start text-left font-medium rounded-lg h-11",
+                          isReadOnly && "bg-muted/50 text-foreground cursor-not-allowed",
                           !formData.dob && "text-muted-foreground",
                           errors.dob ? "border-destructive ring-2 ring-destructive/20" : ""
                         )}
@@ -186,77 +194,104 @@ const ViewProfile = () => {
                   {errors.dob && <p className="text-sm font-medium text-destructive">{errors.dob}</p>}
                 </FormField>
                 <FormField>
-                  <Label htmlFor="instituteName" className="text-sm font-semibold text-foreground">
-                    Institute Name <span className="text-destructive">*</span>
-                  </Label>
-                  <Select
-                    value={formData.instituteName}
-                    onValueChange={(value) => setFormData({ ...formData, instituteName: value })}
-                  >
-                    <SelectTrigger className={`rounded-lg h-11 ${errors.instituteName ? "border-destructive ring-2 ring-destructive/20" : ""}`}>
-                      <SelectValue placeholder="Select institute" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-popover">
-                      {institutes.map((institute) => (
-                        <SelectItem key={institute} value={institute}>{institute}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {errors.instituteName && <p className="text-sm font-medium text-destructive">{errors.instituteName}</p>}
-                </FormField>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField>
                   <Label htmlFor="mobile" className="text-sm font-semibold text-foreground">
-                    Mobile number <span className="text-destructive">*</span>
+                    Mobile number {!isReadOnly && <span className="text-destructive">*</span>}
                   </Label>
                   <Input
                     id="mobile"
                     type="tel"
                     value={formData.mobile}
                     onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
-                    className={`rounded-lg h-11 ${errors.mobile ? "border-destructive ring-2 ring-destructive/20" : ""}`}
+                    className={`rounded-lg h-11 font-medium ${isReadOnly ? "bg-muted/50 text-foreground cursor-not-allowed" : ""} ${errors.mobile ? "border-destructive ring-2 ring-destructive/20" : ""}`}
                     placeholder="+855 12 345 678"
+                    disabled={isReadOnly}
                   />
                   {errors.mobile && <p className="text-sm font-medium text-destructive">{errors.mobile}</p>}
                 </FormField>
-                <FormField>
-                  <Label htmlFor="email" className="text-sm font-semibold text-foreground">
-                    Email ID <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className={`rounded-lg h-11 ${errors.email ? "border-destructive ring-2 ring-destructive/20" : ""}`}
-                    placeholder="email@example.com"
-                  />
-                  {errors.email && <p className="text-sm font-medium text-destructive">{errors.email}</p>}
-                </FormField>
               </div>
+
+              {!isAdmin && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <FormField>
+                    <Label htmlFor="instituteName" className="text-sm font-semibold text-foreground">
+                      Institute Name <span className="text-destructive">*</span>
+                    </Label>
+                    <Select
+                      value={formData.instituteName}
+                      onValueChange={(value) => setFormData({ ...formData, instituteName: value })}
+                      disabled={isStudent}
+                    >
+                      <SelectTrigger className={`rounded-lg h-11 ${isStudent ? "bg-muted/50 text-foreground cursor-not-allowed" : ""} ${errors.instituteName ? "border-destructive ring-2 ring-destructive/20" : ""}`}>
+                        <SelectValue placeholder="Select institute" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover">
+                        {institutes.map((institute) => (
+                          <SelectItem key={institute} value={institute}>{institute}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {errors.instituteName && <p className="text-sm font-medium text-destructive">{errors.instituteName}</p>}
+                  </FormField>
+                  <FormField>
+                    <Label htmlFor="email" className="text-sm font-semibold text-foreground">
+                      Email ID {!isReadOnly && <span className="text-destructive">*</span>}
+                    </Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      className={`rounded-lg h-11 font-medium ${isReadOnly ? "bg-muted/50 text-foreground cursor-not-allowed" : ""} ${errors.email ? "border-destructive ring-2 ring-destructive/20" : ""}`}
+                      placeholder="email@example.com"
+                      disabled={isReadOnly}
+                    />
+                    {errors.email && <p className="text-sm font-medium text-destructive">{errors.email}</p>}
+                  </FormField>
+                </div>
+              )}
+
+              {isAdmin && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <FormField>
+                    <Label htmlFor="email" className="text-sm font-semibold text-foreground">
+                      Email ID {!isReadOnly && <span className="text-destructive">*</span>}
+                    </Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      className={`rounded-lg h-11 font-medium ${isReadOnly ? "bg-muted/50 text-foreground cursor-not-allowed" : ""} ${errors.email ? "border-destructive ring-2 ring-destructive/20" : ""}`}
+                      placeholder="email@example.com"
+                      disabled={isReadOnly}
+                    />
+                    {errors.email && <p className="text-sm font-medium text-destructive">{errors.email}</p>}
+                  </FormField>
+                </div>
+              )}
             </CardContent>
           </Card>
 
-          <div className="flex justify-end gap-4">
-            <Button type="button" variant="outline" onClick={handleCancel} className="rounded-lg px-6" disabled={isSaving}>
-              Cancel
-            </Button>
-            <Button type="submit" className="rounded-lg px-8 bg-primary hover:bg-primary/90 gap-2" disabled={isSaving}>
-              {isSaving ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4" />
-                  Save Changes
-                </>
-              )}
-            </Button>
-          </div>
+          {!isReadOnly && (
+            <div className="flex justify-end gap-4">
+              <Button type="button" variant="outline" onClick={handleCancel} className="rounded-lg px-6" disabled={isSaving}>
+                Cancel
+              </Button>
+              <Button type="submit" className="rounded-lg px-8 bg-primary hover:bg-primary/90 gap-2" disabled={isSaving}>
+                {isSaving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4" />
+                    Save Changes
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
         </form>
       </div>
     </DashboardLayout>

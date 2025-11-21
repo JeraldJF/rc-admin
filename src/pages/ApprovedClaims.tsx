@@ -16,7 +16,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { formatDistanceToNow } from "date-fns";
-import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, CheckCircle2 } from "lucide-react";
 
 type SortOrder = "asc" | "desc" | null;
 
@@ -49,13 +49,23 @@ const ApprovedClaims = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-foreground">Approved Claims</h1>
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-lg bg-green-100 flex items-center justify-center">
+            <CheckCircle2 className="h-6 w-6 text-green-600" />
+          </div>
+          <h1 className="text-2xl font-bold text-foreground">Approved Claims</h1>
+        </div>
 
         <div className="rounded-xl border border-border bg-card overflow-hidden shadow-lg">
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50 hover:bg-muted/50">
-                <TableHead className="font-bold text-foreground">Student Name</TableHead>
+                <TableHead className="font-bold text-foreground">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    Student Name
+                  </div>
+                </TableHead>
                 <TableHead className="font-bold text-foreground">Institute Name</TableHead>
                 <TableHead className="font-bold text-foreground">
                   <button
@@ -78,7 +88,12 @@ const ApprovedClaims = () => {
               ) : (
                 sortedClaims.map((claim) => (
                   <TableRow key={claim.id} className="hover:bg-muted/30 transition-colors">
-                    <TableCell className="font-semibold text-foreground">{claim.studentName}</TableCell>
+                    <TableCell className="font-semibold text-foreground">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                        {claim.studentName}
+                      </div>
+                    </TableCell>
                     <TableCell className="font-medium">{claim.instituteName}</TableCell>
                     <TableCell>
                       <TooltipProvider>

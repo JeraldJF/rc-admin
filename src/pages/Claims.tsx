@@ -34,6 +34,7 @@ type SortOrder = "asc" | "desc" | null;
 
 const Claims = () => {
   const { toast } = useToast();
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showRequestDialog, setShowRequestDialog] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -115,6 +116,12 @@ const Claims = () => {
       return;
     }
     
+    // Show confirmation dialog first
+    setShowConfirmDialog(true);
+  };
+
+  const handleConfirmRequest = () => {
+    setShowConfirmDialog(false);
     setShowRequestDialog(true);
     setIsLoading(true);
     setShowSuccess(false);
@@ -251,6 +258,31 @@ const Claims = () => {
         </div>
       </div>
 
+      {/* Confirmation Dialog */}
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Request Claim Confirmation</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p>Are you sure you want to submit a claim request for:</p>
+              <div className="bg-muted p-3 rounded-lg">
+                <p className="font-semibold text-foreground">Royal University of Phnom Penh</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleConfirmRequest}
+              className="bg-primary hover:bg-primary/90"
+            >
+              Confirm Request
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Request Processing Dialog */}
       <AlertDialog open={showRequestDialog} onOpenChange={setShowRequestDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>

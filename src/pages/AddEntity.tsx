@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, CalendarIcon, Save } from "lucide-react";
-import { institutes } from "@/data/mockData";
+import { institutes, mockEntities } from "@/data/mockData";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -22,6 +22,7 @@ const AddEntity = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [userRole, setUserRole] = useState<string>("admin");
+  const [teacherInstitute, setTeacherInstitute] = useState<string>("");
   
   const [formData, setFormData] = useState({
     gender: "Male",
@@ -37,6 +38,16 @@ const AddEntity = () => {
   useEffect(() => {
     const role = localStorage.getItem("userRole") || "admin";
     setUserRole(role);
+    
+    // For teachers, automatically set their institute
+    if (role === "teacher") {
+      const userEmail = localStorage.getItem("userEmail");
+      const teacher = mockEntities.find(e => e.schema === "Teacher" && e.email === userEmail);
+      if (teacher && teacher.instituteName) {
+        setTeacherInstitute(teacher.instituteName);
+        setFormData(prev => ({ ...prev, instituteName: teacher.instituteName || "" }));
+      }
+    }
   }, []);
 
   const validateField = (fieldName: string, value: string) => {
@@ -91,6 +102,11 @@ const AddEntity = () => {
 
   const pageTitle = userRole === "admin" ? "Add Teacher Details" : "Add Student Details";
   const isTeacher = userRole === "admin";
+  
+  // Get the list of institutes to show in dropdown
+  const availableInstitutes = isTeacher 
+    ? institutes // Admin sees all institutes when adding teacher
+    : teacherInstitute ? [teacherInstitute] : []; // Teacher sees only their institute when adding student
 
   return (
     <DashboardLayout>
@@ -204,7 +220,7 @@ const AddEntity = () => {
                       <SelectValue placeholder="Select institute" />
                     </SelectTrigger>
                     <SelectContent className="bg-popover">
-                      {institutes.map((institute) => (
+                      {availableInstitutes.map((institute) => (
                         <SelectItem key={institute} value={institute}>{institute}</SelectItem>
                       ))}
                     </SelectContent>

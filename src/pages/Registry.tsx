@@ -59,9 +59,20 @@ const Registry = () => {
     }
   }, [searchParams]);
 
+  // Get teacher's institute for filtering (when role is teacher)
+  const teacherInstitute = userRole === "teacher" 
+    ? mockEntities.find(e => e.schema === "Teacher" && e.email === localStorage.getItem("userEmail"))?.instituteName 
+    : null;
+
   const filteredEntities = entities.filter((entity) => {
     const displayName = entity.schema === "Student" ? entity.fullName : entity.name;
     const matchesSearch = displayName?.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    // For teachers, only show students from their institute
+    if (userRole === "teacher" && teacherInstitute) {
+      return matchesSearch && entity.schema === "Student" && entity.instituteName === teacherInstitute;
+    }
+    
     return matchesSearch;
   });
 
@@ -173,7 +184,9 @@ const Registry = () => {
               <TableHeader>
               <TableRow className="bg-muted/50 hover:bg-muted/50">
                 <TableHead className="font-bold text-foreground">Name</TableHead>
-                <TableHead className="font-bold text-foreground">Institute Name</TableHead>
+                {userRole === "admin" && (
+                  <TableHead className="font-bold text-foreground">Institute Name</TableHead>
+                )}
                 <TableHead className="font-bold text-foreground">
                   <button
                     onClick={() => toggleSort("created")}
@@ -201,7 +214,9 @@ const Registry = () => {
                   <TableCell className="font-semibold text-foreground">
                     {entity.schema === "Student" ? entity.fullName : entity.name}
                   </TableCell>
-                  <TableCell className="font-medium">{entity.instituteName}</TableCell>
+                  {userRole === "admin" && (
+                    <TableCell className="font-medium">{entity.instituteName}</TableCell>
+                  )}
                   <TableCell>
                     <TooltipProvider>
                       <Tooltip>

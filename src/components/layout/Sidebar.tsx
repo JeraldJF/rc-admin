@@ -1,4 +1,4 @@
-import { Database, LogOut, ClipboardList, CheckCircle, User } from "lucide-react";
+import { Database, LogOut, ClipboardList, CheckCircle, User, Clock } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -46,7 +46,7 @@ export const Sidebar = () => {
               activeClassName="bg-primary/10 text-primary font-semibold shadow-sm"
             >
               <ClipboardList className="h-5 w-5" />
-              <span>Claim Registry</span>
+              <span>My Claims</span>
             </NavLink>
           </>
         ) : userRole === "teacher" ? (
@@ -57,14 +57,14 @@ export const Sidebar = () => {
               activeClassName="bg-primary/10 text-primary font-semibold shadow-sm"
             >
               <Database className="h-5 w-5" />
-              <span>Registry</span>
+              <span>{"Students List"}</span>
             </NavLink>
             <NavLink
               to="/pending-claims"
               className="flex items-center gap-3 px-4 py-3 rounded-lg text-foreground font-medium hover:bg-primary/5 hover:text-primary transition-all duration-200 mt-2"
               activeClassName="bg-primary/10 text-primary font-semibold shadow-sm"
             >
-              <ClipboardList className="h-5 w-5" />
+              <Clock className="h-5 w-5" />
               <span>Pending Claims</span>
             </NavLink>
             <NavLink
@@ -83,7 +83,7 @@ export const Sidebar = () => {
             activeClassName="bg-primary/10 text-primary font-semibold shadow-sm"
           >
             <Database className="h-5 w-5" />
-            <span>Registry</span>
+            <span>{"Teachers List"}</span>
           </NavLink>
         )}
       </nav>

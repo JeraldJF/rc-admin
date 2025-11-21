@@ -26,6 +26,7 @@ const EditEntity = () => {
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [userRole, setUserRole] = useState<string>("admin");
+  const [teacherInstitute, setTeacherInstitute] = useState<string>("");
   const [formData, setFormData] = useState({
     gender: "Male",
     fullName: "",
@@ -40,6 +41,15 @@ const EditEntity = () => {
   useEffect(() => {
     const role = localStorage.getItem("userRole") || "admin";
     setUserRole(role);
+    
+    // For teachers, get their institute
+    if (role === "teacher") {
+      const userEmail = localStorage.getItem("userEmail");
+      const teacher = mockEntities.find(e => e.schema === "Teacher" && e.email === userEmail);
+      if (teacher && teacher.instituteName) {
+        setTeacherInstitute(teacher.instituteName);
+      }
+    }
     
     setTimeout(() => {
       const found = mockEntities.find((e) => e.id === id);
@@ -125,6 +135,11 @@ const EditEntity = () => {
 
   const pageTitle = userRole === "admin" ? "Edit Teacher Details" : "Edit Student Details";
   const isTeacher = userRole === "admin";
+  
+  // Get the list of institutes to show in dropdown
+  const availableInstitutes = isTeacher 
+    ? institutes // Admin sees all institutes when editing teacher
+    : teacherInstitute ? [teacherInstitute] : []; // Teacher sees only their institute when editing student
 
   return (
     <DashboardLayout>
@@ -238,7 +253,7 @@ const EditEntity = () => {
                       <SelectValue placeholder="Select institute" />
                     </SelectTrigger>
                     <SelectContent className="bg-popover">
-                      {institutes.map((institute) => (
+                      {availableInstitutes.map((institute) => (
                         <SelectItem key={institute} value={institute}>{institute}</SelectItem>
                       ))}
                     </SelectContent>
