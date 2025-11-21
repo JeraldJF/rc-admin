@@ -16,27 +16,40 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
 
+  const validateField = (fieldName: "email" | "password", value: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    
+    if (fieldName === "email") {
+      if (!value) {
+        return "Email is required";
+      } else if (!emailRegex.test(value)) {
+        return "Please enter a valid email";
+      }
+    }
+    
+    if (fieldName === "password") {
+      if (!value) {
+        return "Password is required";
+      } else if (value.length < 8) {
+        return "Password must be at least 8 characters";
+      } else if (!/[A-Z]/.test(value)) {
+        return "Password must contain at least one uppercase letter";
+      } else if (!/[0-9]/.test(value)) {
+        return "Password must contain at least one number";
+      }
+    }
+    
+    return "";
+  };
+
   const validateForm = () => {
     const newErrors: { email?: string; password?: string } = {};
     
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email) {
-      newErrors.email = "Email is required";
-    } else if (!emailRegex.test(email)) {
-      newErrors.email = "Please enter a valid email";
-    }
-
-    // Password validation
-    if (!password) {
-      newErrors.password = "Password is required";
-    } else if (password.length < 8) {
-      newErrors.password = "Password must be at least 8 characters";
-    } else if (!/[A-Z]/.test(password)) {
-      newErrors.password = "Password must contain at least one uppercase letter";
-    } else if (!/[0-9]/.test(password)) {
-      newErrors.password = "Password must contain at least one number";
-    }
+    const emailError = validateField("email", email);
+    const passwordError = validateField("password", password);
+    
+    if (emailError) newErrors.email = emailError;
+    if (passwordError) newErrors.password = passwordError;
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -88,7 +101,11 @@ const Login = () => {
                 id="email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  const error = validateField("email", e.target.value);
+                  setErrors(prev => ({ ...prev, email: error || undefined }));
+                }}
                 placeholder="admin@example.com"
                 className={errors.email ? "border-destructive" : ""}
               />
@@ -103,7 +120,11 @@ const Login = () => {
                 id="password"
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  const error = validateField("password", e.target.value);
+                  setErrors(prev => ({ ...prev, password: error || undefined }));
+                }}
                 placeholder="••••••••"
                 className={errors.password ? "border-destructive" : ""}
               />

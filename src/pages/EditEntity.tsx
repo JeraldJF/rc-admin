@@ -58,6 +58,17 @@ const EditEntity = () => {
     }, 300);
   }, [id]);
 
+  const validateField = (fieldName: string, value: string) => {
+    if (fieldName === "dob" && !value) return "Date of Birth is required";
+    if (fieldName === "gender" && !value) return "Gender is required";
+    if (fieldName === "mobile" && !value) return "Mobile number is required";
+    if (fieldName === "email" && !value) return "Email is required";
+    if (fieldName === "instituteName" && !value) return "Institute Name is required";
+    if (fieldName === "name" && !value && userRole === "admin") return "Name is required";
+    if (fieldName === "fullName" && !value && userRole === "teacher") return "Full Name is required";
+    return "";
+  };
+
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
     
@@ -138,7 +149,12 @@ const EditEntity = () => {
                   <Input
                     id={isTeacher ? "name" : "fullName"}
                     value={isTeacher ? formData.name : formData.fullName}
-                    onChange={(e) => setFormData({ ...formData, [isTeacher ? "name" : "fullName"]: e.target.value })}
+                    onChange={(e) => {
+                      const fieldName = isTeacher ? "name" : "fullName";
+                      setFormData({ ...formData, [fieldName]: e.target.value });
+                      const error = validateField(fieldName, e.target.value);
+                      setErrors(prev => ({ ...prev, [fieldName]: error || undefined }));
+                    }}
                     className={`rounded-lg h-11 ${(isTeacher ? errors.name : errors.fullName) ? "border-destructive ring-2 ring-destructive/20" : ""}`}
                     placeholder={isTeacher ? "Enter name" : "Enter full name"}
                   />
@@ -152,7 +168,11 @@ const EditEntity = () => {
                   </Label>
                   <Select
                     value={formData.gender}
-                    onValueChange={(value) => setFormData({ ...formData, gender: value })}
+                    onValueChange={(value) => {
+                      setFormData({ ...formData, gender: value });
+                      const error = validateField("gender", value);
+                      setErrors(prev => ({ ...prev, gender: error || undefined }));
+                    }}
                   >
                     <SelectTrigger className={`rounded-lg h-11 ${errors.gender ? "border-destructive ring-2 ring-destructive/20" : ""}`}>
                       <SelectValue />
@@ -190,7 +210,12 @@ const EditEntity = () => {
                       <Calendar
                         mode="single"
                         selected={formData.dob ? new Date(formData.dob) : undefined}
-                        onSelect={(date) => setFormData({ ...formData, dob: date ? format(date, "yyyy-MM-dd") : "" })}
+                        onSelect={(date) => {
+                          const value = date ? format(date, "yyyy-MM-dd") : "";
+                          setFormData({ ...formData, dob: value });
+                          const error = validateField("dob", value);
+                          setErrors(prev => ({ ...prev, dob: error || undefined }));
+                        }}
                         initialFocus
                       />
                     </PopoverContent>
@@ -203,7 +228,11 @@ const EditEntity = () => {
                   </Label>
                   <Select
                     value={formData.instituteName}
-                    onValueChange={(value) => setFormData({ ...formData, instituteName: value })}
+                    onValueChange={(value) => {
+                      setFormData({ ...formData, instituteName: value });
+                      const error = validateField("instituteName", value);
+                      setErrors(prev => ({ ...prev, instituteName: error || undefined }));
+                    }}
                   >
                     <SelectTrigger className={`rounded-lg h-11 ${errors.instituteName ? "border-destructive ring-2 ring-destructive/20" : ""}`}>
                       <SelectValue placeholder="Select institute" />
@@ -227,7 +256,11 @@ const EditEntity = () => {
                     id="mobile"
                     type="tel"
                     value={formData.mobile}
-                    onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
+                    onChange={(e) => {
+                      setFormData({ ...formData, mobile: e.target.value });
+                      const error = validateField("mobile", e.target.value);
+                      setErrors(prev => ({ ...prev, mobile: error || undefined }));
+                    }}
                     className={`rounded-lg h-11 ${errors.mobile ? "border-destructive ring-2 ring-destructive/20" : ""}`}
                     placeholder="+855 12 345 678"
                   />
@@ -241,7 +274,11 @@ const EditEntity = () => {
                     id="email"
                     type="email"
                     value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    onChange={(e) => {
+                      setFormData({ ...formData, email: e.target.value });
+                      const error = validateField("email", e.target.value);
+                      setErrors(prev => ({ ...prev, email: error || undefined }));
+                    }}
                     className={`rounded-lg h-11 ${errors.email ? "border-destructive ring-2 ring-destructive/20" : ""}`}
                     placeholder="email@example.com"
                   />
