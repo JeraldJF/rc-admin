@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
-import { Plus, ArrowUpDown, ArrowUp, ArrowDown, Trash2, Loader2 } from "lucide-react";
+import { Plus, ArrowUpDown, ArrowUp, ArrowDown, Trash2, Loader2, Download, ClipboardList } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Claim } from "@/data/claimsData";
+import { searchStudentByEmail, getStudentById, downloadStudentCertificate, requestClaim } from "@/lib/api";
 import {
   Table,
   TableBody,
@@ -12,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { StatusBadge } from "@/components/ui/status-badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,6 +37,7 @@ type SortOrder = "asc" | "desc" | null;
 
 const Claims = () => {
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showRequestDialog, setShowRequestDialog] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -42,44 +46,79 @@ const Claims = () => {
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [isLoadingClaims, setIsLoadingClaims] = useState(false);
+
+  // Helper function to mask claim ID
+  const maskClaimId = (id: string) => {
+    if (!id || id.length <= 8) return id;
+    const lastFour = id.slice(-4);
+    return `****-****-${lastFour}`;
+  };
+
+  // Fetch claims from API
+  const fetchClaims = async () => {
+    setIsLoadingClaims(true);
+    try {
+      const userEmail = localStorage.getItem("userEmail") || "";
+      
+      // Search student by email to get osid
+      const searchResults = await searchStudentByEmail(userEmail);
+      
+      if (!searchResults || searchResults.length === 0) {
+        setClaims([]);
+        return;
+      }
+      
+      const osid = searchResults[0].osid;
+      
+      // Get student details including attestations
+      const studentData = await getStudentById(osid);
+      
+      // Parse studentInstituteAttest array
+      const attestations = studentData.studentInstituteAttest || [];
+      
+      const claimsData: Claim[] = attestations.map((attest: any) => ({
+        id: attest.osid || attest._osAttestedId || `claim-${Date.now()}-${Math.random()}`,
+        studentName: studentData.fullName || userEmail.split("@")[0],
+        instituteName: attest.instituteName || "Unknown Institute",
+        teacherName: attest._osAttestedBy || undefined,
+        dateRequested: attest.osCreatedAt || new Date().toISOString(),
+        dateApproved: attest._osState === "PUBLISHED" ? attest.osUpdatedAt : undefined,
+        status: attest._osState === "PUBLISHED" ? "approved" : "pending",
+        attestationId: attest.osid,
+      }));
+      
+      setClaims(claimsData);
+    } catch (error) {
+      console.error("Error fetching claims:", error);
+      toast({
+        title: t("toast.failed_load_claims"),
+        description: error instanceof Error ? error.message : t("toast.could_not_fetch_claims"),
+        variant: "destructive",
+      });
+      setClaims([]);
+    } finally {
+      setIsLoadingClaims(false);
+    }
+  };
 
   useEffect(() => {
-    // Get student's name from email
-    const userEmail = localStorage.getItem("userEmail") || "";
-    const studentName = userEmail.split("@")[0];
-    
-    // Add some initial mock claims with various statuses
-    const initialClaims: Claim[] = [
-      {
-        id: "claim-1",
-        studentName: studentName.charAt(0).toUpperCase() + studentName.slice(1),
-        instituteName: "Royal University of Science and Technology",
-        teacherName: "Dr. Sarah Johnson",
-        dateRequested: "2024-11-18",
-        dateApproved: "2024-11-19",
-        status: "approved",
-      },
-      {
-        id: "claim-2",
-        studentName: studentName.charAt(0).toUpperCase() + studentName.slice(1),
-        instituteName: "National University of Management",
-        dateRequested: "2024-11-17",
-        status: "pending",
-      },
-      {
-        id: "claim-3",
-        studentName: studentName.charAt(0).toUpperCase() + studentName.slice(1),
-        instituteName: "Institute of Technology of Cambodia",
-        dateRequested: "2024-11-15",
-        status: "rejected",
-      },
-    ];
-    
-    setClaims(initialClaims);
+    fetchClaims();
   }, []);
 
-  // Sort claims by date
+  // Sort claims: approved/published first, then by date
   const sortedClaims = [...claims].sort((a, b) => {
+    // First, sort by status - approved claims first
+    const statusOrder = { approved: 0, pending: 1, rejected: 2 };
+    const statusA = statusOrder[a.status as keyof typeof statusOrder] ?? 3;
+    const statusB = statusOrder[b.status as keyof typeof statusOrder] ?? 3;
+    
+    if (statusA !== statusB) {
+      return statusA - statusB;
+    }
+    
+    // Then sort by date within same status
     if (!sortOrder) return 0;
     const dateA = new Date(a.dateRequested).getTime();
     const dateB = new Date(b.dateRequested).getTime();
@@ -109,8 +148,8 @@ const Claims = () => {
     
     if (existingClaim) {
       toast({
-        title: "❌ Cannot submit request",
-        description: `You already have a ${existingClaim.status} claim for this institute. Please wait for it to be processed or rejected.`,
+        title: t("toast.cannot_submit_request"),
+        description: `${t("toast.existing_claim_message")} ${existingClaim.status} ${t("toast.wait_for_processing")}`,
         variant: "destructive",
       });
       return;
@@ -120,28 +159,28 @@ const Claims = () => {
     setShowConfirmDialog(true);
   };
 
-  const handleConfirmRequest = () => {
+  const handleConfirmRequest = async () => {
     setShowConfirmDialog(false);
     setShowRequestDialog(true);
     setIsLoading(true);
     setShowSuccess(false);
     
-    // Simulate loading for 2-3 seconds
-    setTimeout(() => {
+    try {
+      // Get student osid from localStorage
+      const studentOsid = localStorage.getItem("studentOsid") || "";
+      
+      if (!studentOsid) {
+        throw new Error("Student ID not found. Please login again.");
+      }
+      
+      // Call API to request claim
+      await requestClaim(studentOsid);
+      
       setIsLoading(false);
       setShowSuccess(true);
       
-      // Add new claim to the table
-      const userEmail = localStorage.getItem("userEmail") || "";
-      const studentName = userEmail.split("@")[0];
-      const newClaim: Claim = {
-        id: `claim-${Date.now()}`,
-        studentName: studentName.charAt(0).toUpperCase() + studentName.slice(1),
-        instituteName: "Royal University of Phnom Penh",
-        dateRequested: new Date().toISOString(),
-        status: "pending",
-      };
-      setClaims(prev => [newClaim, ...prev]);
+      // Refresh claims list to show the new claim
+      await fetchClaims();
       
       // Auto-close dialog after 2-3 seconds
       setTimeout(() => {
@@ -149,7 +188,15 @@ const Claims = () => {
         setIsLoading(false);
         setShowSuccess(false);
       }, 2500);
-    }, 2500);
+    } catch (error) {
+      setIsLoading(false);
+      setShowRequestDialog(false);
+      toast({
+        title: t("toast.failed_request_claim"),
+        description: error instanceof Error ? error.message : t("toast.could_not_submit_request"),
+        variant: "destructive",
+      });
+    }
   };
 
   const handleDelete = async () => {
@@ -160,8 +207,8 @@ const Claims = () => {
       
       setClaims(prev => prev.filter(claim => claim.id !== deleteId));
       toast({
-        title: "🗑️ Request for claim successfully deleted",
-        description: "The claim has been removed from your records.",
+        title: t("toast.claim_deleted"),
+        description: t("toast.claim_removed"),
         variant: "success",
       });
       setDeleteId(null);
@@ -169,86 +216,142 @@ const Claims = () => {
     }
   };
 
+  const handleDownloadCertificate = async (claim: Claim) => {
+    setDownloadingId(claim.id);
+    try {
+      const userEmail = localStorage.getItem("userEmail") || "";
+      
+      // Search student to get osid
+      const searchResults = await searchStudentByEmail(userEmail);
+      if (!searchResults || searchResults.length === 0) {
+        throw new Error("Student not found");
+      }
+      
+      const studentId = searchResults[0].osid;
+      const attestationName = "studentInstituteAttest";
+      const attestationId = claim.attestationId || "";
+      
+      if (!attestationId) {
+        throw new Error("Attestation ID not found");
+      }
+      
+      const blob = await downloadStudentCertificate(studentId, attestationName, attestationId);
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `certificate-${claim.instituteName.replace(/\s+/g, "-")}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast({
+        title: t("toast.certificate_downloaded"),
+        description: t("toast.certificate_download_success"),
+        variant: "success",
+      });
+    } catch (error) {
+      toast({
+        title: t("toast.download_failed"),
+        description: error instanceof Error ? error.message : t("toast.could_not_download"),
+        variant: "destructive",
+      });
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-foreground">Claim Requests</h1>
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-card border border-blue-200 flex items-center justify-center shadow-sm">
+              <ClipboardList className="h-6 w-6 text-blue-600" />
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">
+              {t("title.claim_requests")}
+            </h1>
+          </div>
           <Button onClick={handleRequestClaim} className="gap-2">
             <Plus className="h-4 w-4" />
-            Request For Claim
+            {t("btn.request_claim")}
           </Button>
         </div>
 
         <div className="rounded-xl border border-border bg-card overflow-hidden shadow-lg">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/50 hover:bg-muted/50">
-                <TableHead className="font-bold text-foreground">Institute Name</TableHead>
-                <TableHead className="font-bold text-foreground">Teacher Name</TableHead>
-                <TableHead className="font-bold text-foreground">
-                  <button
-                    onClick={toggleSort}
-                    className="flex items-center gap-2 hover:text-primary transition-colors font-bold"
-                  >
-                    Date
-                    {getSortIcon()}
-                  </button>
-                </TableHead>
-                <TableHead className="font-bold text-foreground">Status</TableHead>
-                <TableHead className="w-[80px]"></TableHead>
+          <Table className="relative">
+            <TableHeader className="sticky top-0 z-10">
+              <TableRow className="bg-secondary/95 backdrop-blur-sm border-b border-border/60">
+                <TableHead className="uppercase text-[11px] tracking-wider font-semibold text-muted-foreground">{t("table.claim_id")}</TableHead>
+                <TableHead className="uppercase text-[11px] tracking-wider font-semibold text-muted-foreground">{t("table.status")}</TableHead>
+                <TableHead className="uppercase text-[11px] tracking-wider font-semibold text-muted-foreground">{t("table.actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedClaims.length === 0 ? (
+              {isLoadingClaims ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                    No claims found. Click "Request For Claim" to submit a new request.
+                  <TableCell colSpan={3} className="text-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
+                    <p className="text-muted-foreground mt-2">{t("loading.claims")}</p>
+                  </TableCell>
+                </TableRow>
+              ) : sortedClaims.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
+                    {t("no_data.no_claims_found")}
                   </TableCell>
                 </TableRow>
               ) : (
-                sortedClaims.map((claim) => (
-                  <TableRow key={claim.id} className="hover:bg-muted/30 transition-colors">
-                    <TableCell className="font-semibold text-foreground">{claim.instituteName}</TableCell>
-                    <TableCell className="font-medium">
-                      {claim.status === "approved" && claim.teacherName ? claim.teacherName : "-"}
-                    </TableCell>
-                    <TableCell>
+                sortedClaims.map((claim, i) => (
+                  <TableRow key={claim.id} className={`${i % 2 === 0 ? 'bg-background' : 'bg-muted/40'} hover:bg-muted/60 transition-colors`}>
+                    <TableCell className="font-mono text-sm text-foreground">
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <span className="cursor-help">{formatDistanceToNow(new Date(claim.dateRequested), { addSuffix: true })}</span>
+                            <span className="cursor-help">{maskClaimId(claim.attestationId || claim.id)}</span>
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p>{new Date(claim.dateRequested).toLocaleString()}</p>
+                            <p className="font-mono text-xs">{claim.attestationId || claim.id}</p>
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
                     </TableCell>
                     <TableCell>
-                      <span
-                        className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
-                          claim.status === "approved"
-                            ? "bg-green-100 text-green-800"
-                            : claim.status === "pending"
-                            ? "bg-yellow-100 text-yellow-800"
-                            : "bg-red-100 text-red-800"
-                        }`}
-                      >
-                        {claim.status.charAt(0).toUpperCase() + claim.status.slice(1)}
-                      </span>
+                      <StatusBadge status={claim.status} pulse={claim.status === 'pending'} />
                     </TableCell>
                     <TableCell>
-                      {claim.status === "pending" && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setDeleteId(claim.id)}
-                          className="hover:bg-destructive/10 hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
+                      <div className="flex gap-2">
+                        {claim.status === "approved" && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDownloadCertificate(claim)}
+                            disabled={downloadingId === claim.id}
+                            className="bg-secondary hover:bg-muted text-foreground hover:text-foreground transition-colors"
+                            title={t("tooltip.download")}
+                          >
+                            {downloadingId === claim.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Download className="h-4 w-4" />
+                            )}
+                          </Button>
+                        )}
+                        {claim.status === "pending" && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setDeleteId(claim.id)}
+                            disabled
+                            className="bg-secondary hover:bg-muted text-muted-foreground cursor-not-allowed transition-colors"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -262,21 +365,21 @@ const Claims = () => {
       <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Request Claim Confirmation</AlertDialogTitle>
+            <AlertDialogTitle>{t("confirm.request_claim")}</AlertDialogTitle>
             <AlertDialogDescription className="space-y-3">
-              <p>Are you sure you want to submit a claim request for:</p>
+              <p>{t("confirm.request_claim_desc")}</p>
               <div className="bg-muted p-3 rounded-lg">
                 <p className="font-semibold text-foreground">Royal University of Phnom Penh</p>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("btn.cancel")}</AlertDialogCancel>
             <AlertDialogAction 
               onClick={handleConfirmRequest}
               className="bg-primary hover:bg-primary/90"
             >
-              Confirm Request
+              {t("btn.confirm_request")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -287,13 +390,13 @@ const Claims = () => {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {isLoading ? "Requesting Claim" : "Success"}
+              {isLoading ? t("confirm.requesting") : t("confirm.success")}
             </AlertDialogTitle>
             <AlertDialogDescription className="flex flex-col items-center justify-center py-4">
               {isLoading ? (
                 <>
                   <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-                  <p className="text-base">Sending request for claim...</p>
+                  <p className="text-base">{t("confirm.sending_request")}</p>
                 </>
               ) : showSuccess ? (
                 <>
@@ -313,7 +416,7 @@ const Claims = () => {
                     </svg>
                   </div>
                   <p className="text-base font-semibold text-green-700">
-                    Request for claim submitted successfully!
+                    {t("confirm.request_submitted_successfully")}
                   </p>
                 </>
               ) : null}
@@ -326,13 +429,13 @@ const Claims = () => {
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Claim Request?</AlertDialogTitle>
+            <AlertDialogTitle>{t("confirm.delete_claim_request")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this claim request? This action cannot be undone.
+              {t("confirm.delete_claim_warning")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeleting}>{t("btn.cancel")}</AlertDialogCancel>
             <AlertDialogAction 
               onClick={handleDelete} 
               disabled={isDeleting}
@@ -341,10 +444,10 @@ const Claims = () => {
               {isDeleting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Deleting...
+                  {t("action.deleting")}
                 </>
               ) : (
-                "Delete"
+                t("btn.delete")
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

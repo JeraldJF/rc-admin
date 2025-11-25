@@ -5,7 +5,8 @@ export interface Claim {
   teacherName?: string;
   dateRequested: string;
   dateApproved?: string;
-  status: "pending" | "approved" | "rejected";
+  status: "pending" | "approved";
+  attestationId?: string; // For download API
 }
 
 export const mockClaims: Claim[] = [
@@ -30,7 +31,7 @@ export const mockClaims: Claim[] = [
     studentName: "Michael Brown",
     instituteName: "Institute of Technology of Cambodia",
     dateRequested: "2025-11-18T15:45:00Z", // 3 days ago
-    status: "rejected",
+    status: "pending",
   },
   {
     id: "4",

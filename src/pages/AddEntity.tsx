@@ -6,13 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft, CalendarIcon, Save } from "lucide-react";
-import { institutes, mockEntities } from "@/data/mockData";
+import { ArrowLeft, CalendarIcon, Save, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { addStudent, addTeacher } from "@/lib/api";
 
 const FormField = ({ children }: { children: React.ReactNode }) => (
   <div className="space-y-2.5">{children}</div>
@@ -21,8 +22,9 @@ const FormField = ({ children }: { children: React.ReactNode }) => (
 const AddEntity = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [userRole, setUserRole] = useState<string>("admin");
-  const [teacherInstitute, setTeacherInstitute] = useState<string>("");
+  const [isSaving, setIsSaving] = useState(false);
   
   const [formData, setFormData] = useState({
     gender: "Male",
@@ -32,67 +34,94 @@ const AddEntity = () => {
     email: "",
     instituteName: "",
     dob: "",
+    subject: "", // For teachers
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const role = localStorage.getItem("userRole") || "admin";
     setUserRole(role);
-    
-    // For teachers, automatically set their institute
-    if (role === "teacher") {
-      const userEmail = localStorage.getItem("userEmail");
-      const teacher = mockEntities.find(e => e.schema === "Teacher" && e.email === userEmail);
-      if (teacher && teacher.instituteName) {
-        setTeacherInstitute(teacher.instituteName);
-        setFormData(prev => ({ ...prev, instituteName: teacher.instituteName || "" }));
-      }
-    }
   }, []);
 
   const validateField = (fieldName: string, value: string) => {
-    if (fieldName === "dob" && !value) return "Date of Birth is required";
-    if (fieldName === "gender" && !value) return "Gender is required";
-    if (fieldName === "mobile" && !value) return "Mobile number is required";
-    if (fieldName === "email" && !value) return "Email is required";
-    if (fieldName === "instituteName" && !value) return "Institute Name is required";
-    if (fieldName === "name" && !value && userRole === "admin") return "Name is required";
-    if (fieldName === "fullName" && !value && userRole === "teacher") return "Full Name is required";
+    if (fieldName === "dob" && !value) return t("validation.dob_required");
+    if (fieldName === "gender" && !value) return t("validation.gender_required");
+    if (fieldName === "mobile" && !value) return t("validation.mobile_required");
+    if (fieldName === "email" && !value) return t("validation.email_required");
+    if (fieldName === "instituteName" && !value) return t("validation.institute_required");
+    if (fieldName === "name" && !value && userRole === "admin") return t("validation.name_required");
+    if (fieldName === "fullName" && !value && userRole === "teacher") return t("validation.full_name_required");
     return "";
   };
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
     
-    if (!formData.dob) newErrors.dob = "Date of Birth is required";
-    if (!formData.gender) newErrors.gender = "Gender is required";
-    if (!formData.mobile) newErrors.mobile = "Mobile number is required";
-    if (!formData.email) newErrors.email = "Email is required";
-    if (!formData.instituteName) newErrors.instituteName = "Institute Name is required";
+    if (!formData.dob) newErrors.dob = t("validation.dob_required");
+    if (!formData.gender) newErrors.gender = t("validation.gender_required");
+    if (!formData.mobile) newErrors.mobile = t("validation.mobile_required");
+    if (!formData.email) newErrors.email = t("validation.email_required");
+    if (!formData.instituteName) newErrors.instituteName = t("validation.institute_required");
 
     if (userRole === "admin") {
       // Adding teacher
-      if (!formData.name) newErrors.name = "Name is required";
+      if (!formData.name) newErrors.name = t("validation.name_required");
     } else {
       // Adding student
-      if (!formData.fullName) newErrors.fullName = "Full Name is required";
+      if (!formData.fullName) newErrors.fullName = t("validation.full_name_required");
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (validateForm()) {
-      const entityType = userRole === "admin" ? "Teacher" : "Student";
-      toast({
-        title: `✅ ${entityType} added successfully`,
-        description: "The record has been created.",
-        variant: "success",
-      });
-      navigate("/registry");
+      setIsSaving(true);
+      try {
+        if (userRole === "admin") {
+          // Add Teacher
+          await addTeacher({
+            name: formData.name,
+            mobile: formData.mobile,
+            email: formData.email,
+            subject: formData.subject || "",
+            instituteName: formData.instituteName,
+            gender: formData.gender,
+          });
+          toast({
+            title: "✅ " + t("toast.teacher_added"),
+            description: t("toast.teacher_added_desc"),
+            variant: "success",
+          });
+        } else {
+          // Add Student
+          await addStudent({
+            fullName: formData.fullName,
+            dob: formData.dob,
+            gender: formData.gender,
+            mobile: formData.mobile,
+            email: formData.email,
+            instituteName: formData.instituteName,
+          });
+          toast({
+            title: "✅ " + t("toast.student_added"),
+            description: t("toast.student_added_desc"),
+            variant: "success",
+          });
+        }
+        navigate("/registry");
+      } catch (error) {
+        toast({
+          title: "❌ " + t("toast.failed_add"),
+          description: error instanceof Error ? error.message : t("toast.failed_add_desc"),
+          variant: "destructive",
+        });
+      } finally {
+        setIsSaving(false);
+      }
     }
   };
 
@@ -100,13 +129,8 @@ const AddEntity = () => {
     navigate("/registry");
   };
 
-  const pageTitle = userRole === "admin" ? "Add Teacher Details" : "Add Student Details";
+  const pageTitle = userRole === "admin" ? t("heading.add_teacher") : t("heading.add_student");
   const isTeacher = userRole === "admin";
-  
-  // Get the list of institutes to show in dropdown
-  const availableInstitutes = isTeacher 
-    ? institutes // Admin sees all institutes when adding teacher
-    : teacherInstitute ? [teacherInstitute] : []; // Teacher sees only their institute when adding student
 
   return (
     <DashboardLayout>
@@ -114,7 +138,7 @@ const AddEntity = () => {
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={handleCancel} className="gap-2 hover:bg-accent transition-colors rounded-lg">
             <ArrowLeft className="h-4 w-4" />
-            <span className="font-semibold">Back</span>
+            <span className="font-semibold">{t("action.back")}</span>
           </Button>
           <div className="h-6 w-px bg-border"></div>
           <h1 className="text-2xl font-bold text-foreground">{pageTitle}</h1>
@@ -126,7 +150,7 @@ const AddEntity = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField>
                   <Label htmlFor={isTeacher ? "name" : "fullName"} className="text-sm font-semibold text-foreground">
-                    {isTeacher ? "Name" : "Full Name"} <span className="text-destructive">*</span>
+                    {isTeacher ? t("form.name") : t("form.full_name")} <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id={isTeacher ? "name" : "fullName"}
@@ -138,7 +162,7 @@ const AddEntity = () => {
                       setErrors(prev => ({ ...prev, [fieldName]: error || undefined }));
                     }}
                     className={`rounded-lg h-11 ${(isTeacher ? errors.name : errors.fullName) ? "border-destructive ring-2 ring-destructive/20" : ""}`}
-                    placeholder={isTeacher ? "Enter name" : "Enter full name"}
+                    placeholder={isTeacher ? t("form.enter_name") : t("form.enter_full_name")}
                   />
                   {(isTeacher ? errors.name : errors.fullName) && (
                     <p className="text-sm font-medium text-destructive">{isTeacher ? errors.name : errors.fullName}</p>
@@ -146,7 +170,7 @@ const AddEntity = () => {
                 </FormField>
                 <FormField>
                   <Label htmlFor="gender" className="text-sm font-semibold text-foreground">
-                    Gender <span className="text-destructive">*</span>
+                    {t("form.gender")} <span className="text-destructive">*</span>
                   </Label>
                   <Select
                     value={formData.gender}
@@ -160,9 +184,9 @@ const AddEntity = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-popover">
-                      <SelectItem value="Male">Male</SelectItem>
-                      <SelectItem value="Female">Female</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
+                      <SelectItem value="Male">{t("form.male")}</SelectItem>
+                      <SelectItem value="Female">{t("form.female")}</SelectItem>
+                      <SelectItem value="Other">{t("form.other")}</SelectItem>
                     </SelectContent>
                   </Select>
                   {errors.gender && <p className="text-sm font-medium text-destructive">{errors.gender}</p>}
@@ -172,7 +196,7 @@ const AddEntity = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField>
                   <Label className="text-sm font-semibold text-foreground">
-                    Date of Birth <span className="text-destructive">*</span>
+                    {t("form.date_of_birth")} <span className="text-destructive">*</span>
                   </Label>
                   <Popover>
                     <PopoverTrigger asChild>
@@ -185,7 +209,7 @@ const AddEntity = () => {
                         )}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {formData.dob ? format(new Date(formData.dob), "PPP") : "Pick a date"}
+                        {formData.dob ? format(new Date(formData.dob), "PPP") : t("form.pick_date")}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0 bg-popover" align="start">
@@ -206,25 +230,19 @@ const AddEntity = () => {
                 </FormField>
                 <FormField>
                   <Label htmlFor="instituteName" className="text-sm font-semibold text-foreground">
-                    Institute Name <span className="text-destructive">*</span>
+                    {t("form.institute_name")} <span className="text-destructive">*</span>
                   </Label>
-                  <Select
+                  <Input
+                    id="instituteName"
                     value={formData.instituteName}
-                    onValueChange={(value) => {
-                      setFormData({ ...formData, instituteName: value });
-                      const error = validateField("instituteName", value);
+                    onChange={(e) => {
+                      setFormData({ ...formData, instituteName: e.target.value });
+                      const error = validateField("instituteName", e.target.value);
                       setErrors(prev => ({ ...prev, instituteName: error || undefined }));
                     }}
-                  >
-                    <SelectTrigger className={`rounded-lg h-11 ${errors.instituteName ? "border-destructive ring-2 ring-destructive/20" : ""}`}>
-                      <SelectValue placeholder="Select institute" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-popover">
-                      {availableInstitutes.map((institute) => (
-                        <SelectItem key={institute} value={institute}>{institute}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    className={`rounded-lg h-11 ${errors.instituteName ? "border-destructive ring-2 ring-destructive/20" : ""}`}
+                    placeholder={t("form.enter_institute")}
+                  />
                   {errors.instituteName && <p className="text-sm font-medium text-destructive">{errors.instituteName}</p>}
                 </FormField>
               </div>
@@ -232,7 +250,7 @@ const AddEntity = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField>
                   <Label htmlFor="mobile" className="text-sm font-semibold text-foreground">
-                    Mobile number <span className="text-destructive">*</span>
+                    {t("form.mobile")} <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="mobile"
@@ -244,13 +262,13 @@ const AddEntity = () => {
                       setErrors(prev => ({ ...prev, mobile: error || undefined }));
                     }}
                     className={`rounded-lg h-11 ${errors.mobile ? "border-destructive ring-2 ring-destructive/20" : ""}`}
-                    placeholder="+855 12 345 678"
+                    placeholder={t("form.enter_mobile")}
                   />
                   {errors.mobile && <p className="text-sm font-medium text-destructive">{errors.mobile}</p>}
                 </FormField>
                 <FormField>
                   <Label htmlFor="email" className="text-sm font-semibold text-foreground">
-                    Email ID <span className="text-destructive">*</span>
+                    {t("form.email")} <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="email"
@@ -262,21 +280,48 @@ const AddEntity = () => {
                       setErrors(prev => ({ ...prev, email: error || undefined }));
                     }}
                     className={`rounded-lg h-11 ${errors.email ? "border-destructive ring-2 ring-destructive/20" : ""}`}
-                    placeholder="email@example.com"
+                    placeholder={t("form.enter_email")}
                   />
                   {errors.email && <p className="text-sm font-medium text-destructive">{errors.email}</p>}
                 </FormField>
               </div>
+
+              {/* Subject field - only for teachers (admin adding teacher) */}
+              {isTeacher && (
+                <FormField>
+                  <Label htmlFor="subject" className="text-sm font-semibold text-foreground">
+                    {t("form.subject")}
+                  </Label>
+                  <Input
+                    id="subject"
+                    value={formData.subject}
+                    onChange={(e) => {
+                      setFormData({ ...formData, subject: e.target.value });
+                    }}
+                    className="rounded-lg h-11"
+                    placeholder={t("form.select_subject")}
+                  />
+                </FormField>
+              )}
             </CardContent>
           </Card>
 
           <div className="flex justify-end gap-4">
             <Button type="button" variant="outline" onClick={handleCancel} className="rounded-lg px-6">
-              Cancel
+              {t("btn.cancel")}
             </Button>
-            <Button type="submit" className="rounded-lg px-8 bg-primary hover:bg-primary/90 gap-2">
-              <Save className="h-4 w-4" />
-              Save {isTeacher ? "Teacher" : "Student"}
+            <Button type="submit" disabled={isSaving} className="rounded-lg px-8 bg-primary hover:bg-primary/90 gap-2">
+              {isSaving ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {t("action.saving")}
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4" />
+                  {t("btn.save")} {isTeacher ? t("login.teacher") : t("login.student")}
+                </>
+              )}
             </Button>
           </div>
         </form>

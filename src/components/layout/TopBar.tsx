@@ -1,10 +1,11 @@
-import { Sun, Moon, User, Languages, Search, Loader2 } from "lucide-react";
+import { Sun, Moon, User, Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Input } from "@/components/ui/input";
 import { useNavigate, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/contexts/LanguageContext";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,11 +21,11 @@ export const TopBar = ({ title }: TopBarProps) => {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [username, setUsername] = useState("admin");
   const [userRole, setUserRole] = useState("admin");
-  const [language, setLanguage] = useState("English");
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { language, setLanguage, t } = useLanguage();
 
   // Determine if we should show search bar
   const showSearchBar = location.pathname.startsWith("/entity/new") || 
@@ -44,10 +45,10 @@ export const TopBar = ({ title }: TopBarProps) => {
 
   // Get search placeholder based on role
   const getSearchPlaceholder = (role: string) => {
-    if (role === "admin") return "Search for teachers...";
-    if (role === "teacher") return "Search for students...";
-    if (role === "student") return "Search for claims...";
-    return "Search...";
+    if (role === "admin") return t("search.teachers");
+    if (role === "teacher") return t("search.students");
+    if (role === "student") return t("search.claims");
+    return t("search.default");
   };
 
   useEffect(() => {
@@ -91,33 +92,33 @@ export const TopBar = ({ title }: TopBarProps) => {
   };
 
   return (
-    <header className="h-20 border-b-2 border-border bg-card flex items-center justify-between px-6 shadow-md">
+  <header className="h-16 border-b bg-background/70 backdrop-blur-sm flex items-center justify-between px-6 shadow-sm">
       {showSearchBar ? (
-        <form onSubmit={handleSearch} className="flex-1 max-w-2xl">
+        <form onSubmit={handleSearch} className="flex-1 max-w-md">
           <div className="relative">
             {isSearching ? (
-              <Loader2 className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-primary animate-spin" />
+              <Loader2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary animate-spin" />
             ) : (
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             )}
             <Input
               placeholder={getSearchPlaceholder(userRole)}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               disabled={isSearching}
-              className="pl-12 pr-4 bg-background font-medium rounded-xl h-12 border-2 border-input hover:border-primary/50 focus:border-primary transition-all text-base shadow-sm"
+              className="pl-10 pr-4 bg-background font-medium"
             />
           </div>
         </form>
       ) : (
-        title && <h1 className="text-2xl font-bold text-foreground">{title}</h1>
+        title && <h1 className="text-xl font-semibold text-foreground">{title}</h1>
       )}
-      <div className="flex items-center gap-3 ml-auto">
+      <div className="flex items-center gap-4 ml-auto">
         <Button
           variant="ghost"
           size="icon"
           onClick={toggleTheme}
-          className="rounded-lg transition-colors"
+          className="rounded-full"
         >
           {theme === "light" ? (
             <Moon className="h-5 w-5" />
@@ -127,57 +128,59 @@ export const TopBar = ({ title }: TopBarProps) => {
         </Button>
 
         <Select value={language} onValueChange={setLanguage}>
-          <SelectTrigger className="w-36 font-semibold text-foreground border-input rounded-lg hover:border-primary transition-colors">
+          <SelectTrigger className="w-36 font-medium text-foreground bg-secondary/80 border border-border rounded-md h-10 px-3 focus:outline-none focus:ring-2 focus:ring-primary/40">
             <SelectValue>
               <div className="flex items-center gap-2">
-                {language === "English" ? (
-                  <span className="text-base">🇬🇧</span>
+                {language === "en" ? (
+                  <span className="text-lg">🇺🇸</span>
                 ) : (
-                  <span className="text-base">🇫🇷</span>
+                  <span className="text-lg">🇪🇸</span>
                 )}
-                <span>{language}</span>
+                <span>{t(`lang.${language === "en" ? "english" : "spanish"}`)}</span>
               </div>
             </SelectValue>
           </SelectTrigger>
-          <SelectContent className="bg-popover">
-            <SelectItem value="English">
+          <SelectContent>
+            <SelectItem value="en">
               <div className="flex items-center gap-2">
-                <span className="text-base">🇬🇧</span>
-                <span>English</span>
+                <span className="text-lg">🇺🇸</span>
+                <span>{t("lang.english")}</span>
+              </div>
+            </SelectItem>
+            <SelectItem value="es">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🇪🇸</span>
+                <span>{t("lang.spanish")}</span>
               </div>
             </SelectItem>
           </SelectContent>
         </Select>
-        <div className="flex items-center gap-3 pl-4 border-l border-border">
+        <div className="flex items-center gap-3 pl-4 border-l">
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+            <DropdownMenuTrigger asChild disabled={userRole === "admin"}>
               <button 
                 className={cn(
-                  "flex items-center gap-3 transition-all focus:outline-none rounded-lg px-3 py-2 border-2",
-                  isProfilePage 
-                    ? "bg-primary/10 border-primary/20 ring-2 ring-primary/20" 
-                    : "border-transparent hover:bg-primary/10 hover:border-primary hover:text-primary"
+                  "flex items-center gap-3 transition-colors focus:outline-none",
+                  userRole === "admin" ? "opacity-50 cursor-not-allowed" : "hover:text-primary"
                 )}
+                disabled={userRole === "admin"}
               >
                 <div className={cn(
-                  "h-9 w-9 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-md transition-all",
+                  "h-8 w-8 rounded-full bg-primary flex items-center justify-center",
                   isProfilePage && "ring-2 ring-primary ring-offset-2 ring-offset-background"
                 )}>
-                  <User className="h-5 w-5 text-primary-foreground" />
+                  <User className="h-4 w-4 text-primary-foreground" />
                 </div>
                 <div className="text-left">
-                  <p className="text-sm font-semibold text-foreground">{username}</p>
-                  <p className="text-xs font-medium text-muted-foreground">{getRoleDisplay(userRole)}</p>
+                  <p className="text-sm font-medium text-foreground">{username}</p>
+                  <p className="text-xs text-muted-foreground">{getRoleDisplay(userRole)}</p>
                 </div>
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 bg-popover mt-2 p-2 shadow-xl border-2">
-              <DropdownMenuItem 
-                onClick={() => navigate("/profile")} 
-                className="cursor-pointer py-3 px-4 rounded-lg hover:bg-accent transition-colors"
-              >
-                <User className="mr-3 h-5 w-5" />
-                <span className="text-base font-medium">View Profile</span>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={() => navigate("/profile")} className="cursor-pointer">
+                <User className="mr-2 h-4 w-4" />
+                <span>{t("profile.view_profile")}</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

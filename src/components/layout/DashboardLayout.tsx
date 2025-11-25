@@ -15,7 +15,7 @@ export const DashboardLayout = ({ children, title }: DashboardLayoutProps) => {
         <div className="sticky top-0 z-50">
           <TopBar title={title} />
         </div>
-        <main className="flex-1 p-6 bg-background">
+        <main className="flex-1 p-6">
           {children}
         </main>
       </div>

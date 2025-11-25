@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,18 +8,19 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, CalendarIcon, Save, Loader2 } from "lucide-react";
-import { mockEntities, institutes } from "@/data/mockData";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { getTeacherById, getStudentById, updateTeacher, updateStudent } from "@/lib/api";
 
 const FormField = ({ children }: { children: React.ReactNode}) => (
   <div className="space-y-2.5">{children}</div>
 );
 
 const EditEntity = () => {
+  const { t } = useLanguage();
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -26,7 +28,6 @@ const EditEntity = () => {
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [userRole, setUserRole] = useState<string>("admin");
-  const [teacherInstitute, setTeacherInstitute] = useState<string>("");
   const [formData, setFormData] = useState({
     gender: "Male",
     fullName: "",
@@ -35,6 +36,7 @@ const EditEntity = () => {
     email: "",
     instituteName: "",
     dob: "",
+    subject: "", // For teachers
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -42,40 +44,60 @@ const EditEntity = () => {
     const role = localStorage.getItem("userRole") || "admin";
     setUserRole(role);
     
-    // For teachers, get their institute
-    if (role === "teacher") {
-      const userEmail = localStorage.getItem("userEmail");
-      const teacher = mockEntities.find(e => e.schema === "Teacher" && e.email === userEmail);
-      if (teacher && teacher.instituteName) {
-        setTeacherInstitute(teacher.instituteName);
-      }
-    }
-    
-    setTimeout(() => {
-      const found = mockEntities.find((e) => e.id === id);
-      if (found) {
-        setFormData({
-          gender: found.gender || "Male",
-          fullName: found.fullName || "",
-          name: found.name || "",
-          mobile: found.mobile || "",
-          email: found.email || "",
-          instituteName: found.instituteName || "",
-          dob: found.dob || "",
+    const fetchEntityData = async () => {
+      if (!id) return;
+      
+      setLoading(true);
+      try {
+        if (role === "admin") {
+          // Fetch teacher data
+          const teacherData = await getTeacherById(id);
+          setFormData({
+            gender: teacherData.gender || "Male",
+            fullName: "",
+            name: teacherData.name || "",
+            mobile: teacherData.mobile || "",
+            email: teacherData.email || "",
+            instituteName: teacherData.instituteName || "",
+            dob: teacherData.dob || "",
+            subject: teacherData.subject || "",
+          });
+        } else {
+          // Fetch student data
+          const studentData = await getStudentById(id);
+          setFormData({
+            gender: studentData.gender || "Male",
+            fullName: studentData.fullName || "",
+            name: "",
+            mobile: studentData.mobile || "",
+            email: studentData.email || "",
+            instituteName: studentData.instituteName || "",
+            dob: studentData.dob || "",
+            subject: "",
+          });
+        }
+      } catch (error) {
+        toast({
+          title: t("toast.failed_load_data"),
+          description: error instanceof Error ? error.message : t("toast.could_not_fetch_data"),
+          variant: "destructive",
         });
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
-    }, 300);
+    };
+    
+    fetchEntityData();
   }, [id]);
 
   const validateField = (fieldName: string, value: string) => {
-    if (fieldName === "dob" && !value) return "Date of Birth is required";
-    if (fieldName === "gender" && !value) return "Gender is required";
-    if (fieldName === "mobile" && !value) return "Mobile number is required";
-    if (fieldName === "email" && !value) return "Email is required";
-    if (fieldName === "instituteName" && !value) return "Institute Name is required";
-    if (fieldName === "name" && !value && userRole === "admin") return "Name is required";
-    if (fieldName === "fullName" && !value && userRole === "teacher") return "Full Name is required";
+    if (fieldName === "dob" && !value) return t("validation.dob_required");
+    if (fieldName === "gender" && !value) return t("validation.gender_required");
+    if (fieldName === "mobile" && !value) return t("validation.mobile_required");
+    if (fieldName === "email" && !value) return t("validation.email_required");
+    if (fieldName === "instituteName" && !value) return t("validation.institute_required");
+    if (fieldName === "name" && !value && userRole === "admin") return t("validation.name_required");
+    if (fieldName === "fullName" && !value && userRole === "teacher") return t("validation.full_name_required");
     return "";
   };
 
@@ -103,19 +125,50 @@ const EditEntity = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (validateForm()) {
+    if (validateForm() && id) {
       setIsSaving(true);
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1200));
-      
-      const entityType = userRole === "admin" ? "Teacher" : "Student";
-      toast({
-        title: `✅ ${entityType} updated successfully`,
-        description: "The record has been updated.",
-        variant: "success",
-      });
-      navigate("/registry");
-      setIsSaving(false);
+      try {
+        if (userRole === "admin") {
+          // Update Teacher
+          await updateTeacher(id, {
+            name: formData.name,
+            mobile: formData.mobile,
+            email: formData.email,
+            subject: formData.subject,
+            instituteName: formData.instituteName,
+            gender: formData.gender,
+          });
+          toast({
+            title: t("toast.teacher_updated"),
+            description: t("toast.teacher_record_updated"),
+            variant: "success",
+          });
+        } else {
+          // Update Student
+          await updateStudent(id, {
+            fullName: formData.fullName,
+            dob: formData.dob,
+            gender: formData.gender,
+            mobile: formData.mobile,
+            email: formData.email,
+            instituteName: formData.instituteName,
+          });
+          toast({
+            title: t("toast.student_updated"),
+            description: t("toast.student_record_updated"),
+            variant: "success",
+          });
+        }
+        navigate("/registry");
+      } catch (error) {
+        toast({
+          title: t("toast.failed_update"),
+          description: error instanceof Error ? error.message : t("toast.could_not_update"),
+          variant: "destructive",
+        });
+      } finally {
+        setIsSaving(false);
+      }
     }
   };
 
@@ -133,13 +186,8 @@ const EditEntity = () => {
     );
   }
 
-  const pageTitle = userRole === "admin" ? "Edit Teacher Details" : "Edit Student Details";
+  const pageTitle = userRole === "admin" ? t("heading.edit_teacher") : t("heading.edit_student");
   const isTeacher = userRole === "admin";
-  
-  // Get the list of institutes to show in dropdown
-  const availableInstitutes = isTeacher 
-    ? institutes // Admin sees all institutes when editing teacher
-    : teacherInstitute ? [teacherInstitute] : []; // Teacher sees only their institute when editing student
 
   return (
     <DashboardLayout>
@@ -147,7 +195,7 @@ const EditEntity = () => {
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={handleCancel} className="gap-2 hover:bg-accent transition-colors rounded-lg">
             <ArrowLeft className="h-4 w-4" />
-            <span className="font-semibold">Back</span>
+            <span className="font-semibold">{t("btn.back")}</span>
           </Button>
           <div className="h-6 w-px bg-border"></div>
           <h1 className="text-2xl font-bold text-foreground">{pageTitle}</h1>
@@ -159,7 +207,7 @@ const EditEntity = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField>
                   <Label htmlFor={isTeacher ? "name" : "fullName"} className="text-sm font-semibold text-foreground">
-                    {isTeacher ? "Name" : "Full Name"} <span className="text-destructive">*</span>
+                    {isTeacher ? t("form.name") : t("form.full_name")} <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id={isTeacher ? "name" : "fullName"}
@@ -171,7 +219,7 @@ const EditEntity = () => {
                       setErrors(prev => ({ ...prev, [fieldName]: error || undefined }));
                     }}
                     className={`rounded-lg h-11 ${(isTeacher ? errors.name : errors.fullName) ? "border-destructive ring-2 ring-destructive/20" : ""}`}
-                    placeholder={isTeacher ? "Enter name" : "Enter full name"}
+                    placeholder={isTeacher ? t("form.enter_name") : t("form.enter_full_name")}
                   />
                   {(isTeacher ? errors.name : errors.fullName) && (
                     <p className="text-sm font-medium text-destructive">{isTeacher ? errors.name : errors.fullName}</p>
@@ -179,7 +227,7 @@ const EditEntity = () => {
                 </FormField>
                 <FormField>
                   <Label htmlFor="gender" className="text-sm font-semibold text-foreground">
-                    Gender <span className="text-destructive">*</span>
+                    {t("form.gender")} <span className="text-destructive">*</span>
                   </Label>
                   <Select
                     value={formData.gender}
@@ -193,9 +241,9 @@ const EditEntity = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-popover">
-                      <SelectItem value="Male">Male</SelectItem>
-                      <SelectItem value="Female">Female</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
+                      <SelectItem value="Male">{t("form.male")}</SelectItem>
+                      <SelectItem value="Female">{t("form.female")}</SelectItem>
+                      <SelectItem value="Other">{t("form.other")}</SelectItem>
                     </SelectContent>
                   </Select>
                   {errors.gender && <p className="text-sm font-medium text-destructive">{errors.gender}</p>}
@@ -205,7 +253,7 @@ const EditEntity = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField>
                   <Label className="text-sm font-semibold text-foreground">
-                    Date of Birth <span className="text-destructive">*</span>
+                    {t("form.date_of_birth")} <span className="text-destructive">*</span>
                   </Label>
                   <Popover>
                     <PopoverTrigger asChild>
@@ -218,7 +266,7 @@ const EditEntity = () => {
                         )}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {formData.dob ? format(new Date(formData.dob), "PPP") : "Pick a date"}
+                        {formData.dob ? format(new Date(formData.dob), "PPP") : t("form.pick_date")}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0 bg-popover" align="start">
@@ -239,25 +287,19 @@ const EditEntity = () => {
                 </FormField>
                 <FormField>
                   <Label htmlFor="instituteName" className="text-sm font-semibold text-foreground">
-                    Institute Name <span className="text-destructive">*</span>
+                    {t("form.institute_name")} <span className="text-destructive">*</span>
                   </Label>
-                  <Select
+                  <Input
+                    id="instituteName"
                     value={formData.instituteName}
-                    onValueChange={(value) => {
-                      setFormData({ ...formData, instituteName: value });
-                      const error = validateField("instituteName", value);
+                    onChange={(e) => {
+                      setFormData({ ...formData, instituteName: e.target.value });
+                      const error = validateField("instituteName", e.target.value);
                       setErrors(prev => ({ ...prev, instituteName: error || undefined }));
                     }}
-                  >
-                    <SelectTrigger className={`rounded-lg h-11 ${errors.instituteName ? "border-destructive ring-2 ring-destructive/20" : ""}`}>
-                      <SelectValue placeholder="Select institute" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-popover">
-                      {availableInstitutes.map((institute) => (
-                        <SelectItem key={institute} value={institute}>{institute}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    className={`rounded-lg h-11 ${errors.instituteName ? "border-destructive ring-2 ring-destructive/20" : ""}`}
+                    placeholder={t("form.enter_institute")}
+                  />
                   {errors.instituteName && <p className="text-sm font-medium text-destructive">{errors.instituteName}</p>}
                 </FormField>
               </div>
@@ -265,7 +307,7 @@ const EditEntity = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField>
                   <Label htmlFor="mobile" className="text-sm font-semibold text-foreground">
-                    Mobile number <span className="text-destructive">*</span>
+                    {t("form.mobile_number")} <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="mobile"
@@ -283,7 +325,7 @@ const EditEntity = () => {
                 </FormField>
                 <FormField>
                   <Label htmlFor="email" className="text-sm font-semibold text-foreground">
-                    Email ID <span className="text-destructive">*</span>
+                    {t("form.email")} <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="email"
@@ -295,7 +337,7 @@ const EditEntity = () => {
                       setErrors(prev => ({ ...prev, email: error || undefined }));
                     }}
                     className={`rounded-lg h-11 ${errors.email ? "border-destructive ring-2 ring-destructive/20" : ""}`}
-                    placeholder="email@example.com"
+                    placeholder={t("form.enter_email")}
                   />
                   {errors.email && <p className="text-sm font-medium text-destructive">{errors.email}</p>}
                 </FormField>
@@ -305,18 +347,18 @@ const EditEntity = () => {
 
           <div className="flex justify-end gap-4">
             <Button type="button" variant="outline" onClick={handleCancel} className="rounded-lg px-6" disabled={isSaving}>
-              Cancel
+              {t("btn.cancel")}
             </Button>
             <Button type="submit" className="rounded-lg px-8 bg-primary hover:bg-primary/90 gap-2" disabled={isSaving}>
               {isSaving ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Saving...
+                  {t("action.saving")}
                 </>
               ) : (
                 <>
                   <Save className="h-4 w-4" />
-                  Save Changes
+                  {t("btn.save_changes")}
                 </>
               )}
             </Button>
