@@ -12,7 +12,15 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { institutes } from "@/data/mockData";
+import { 
+  searchTeacherByEmail, 
+  getTeacherById, 
+  searchStudentByEmail,
+  getStudentById,
+  searchAdminByEmail,
+  getAdminById,
+  TeacherProfile 
+} from "@/lib/api";
 
 const FormField = ({ children }: { children: React.ReactNode }) => (
   <div className="space-y-2.5">{children}</div>
@@ -23,15 +31,16 @@ const ViewProfile = () => {
   const { toast } = useToast();
   const [username, setUsername] = useState("admin");
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [userRole, setUserRole] = useState<string>("");
   
   const [formData, setFormData] = useState({
-    fullName: "admin",
+    fullName: "",
     gender: "Male",
-    mobile: "+855 12 345 678",
-    email: "admin@example.com",
-    instituteName: "Royal University of Phnom Penh",
-    dob: "1990-01-15",
+    mobile: "",
+    email: "",
+    instituteName: "",
+    dob: ""
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -43,9 +52,113 @@ const ViewProfile = () => {
     if (userEmail) {
       const emailUsername = userEmail.split("@")[0];
       setUsername(emailUsername);
-      setFormData(prev => ({ ...prev, fullName: emailUsername }));
+      
+      // Fetch profile data based on role
+      if (role === "teacher") {
+        fetchTeacherProfile(userEmail);
+      } else if (role === "student") {
+        fetchStudentProfile(userEmail);
+      } else if (role === "admin") {
+        fetchAdminProfile(userEmail);
+      }
     }
   }, []);
+
+  const fetchTeacherProfile = async (email: string) => {
+    setIsLoading(true);
+    try {
+      // Step 1: Search for teacher by email
+      const searchResults = await searchTeacherByEmail(email);
+      
+      if (searchResults && searchResults.length > 0) {
+        const teacherSummary = searchResults[0];
+        const osid = teacherSummary.osid;
+        
+        // Step 2: Get full teacher details by osid
+        const teacherDetails: TeacherProfile = await getTeacherById(osid);
+        
+        // Step 3: Populate form data
+        setFormData({
+          fullName: teacherDetails.name || "",
+          gender: teacherDetails.gender || "Male",
+          mobile: teacherDetails.mobile || "",
+          email: teacherDetails.email || "",
+          instituteName: teacherDetails.instituteName || "",
+          dob: teacherDetails.osCreatedAt ? format(new Date(teacherDetails.osCreatedAt), "yyyy-MM-dd") : ""
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "❌ Failed to load profile",
+        description: error instanceof Error ? error.message : "Could not fetch teacher profile",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchStudentProfile = async (email: string) => {
+    setIsLoading(true);
+    try {
+      const searchResults = await searchStudentByEmail(email);
+      
+      if (searchResults && searchResults.length > 0) {
+        const studentSummary = searchResults[0];
+        const osid = studentSummary.osid;
+        
+        const studentDetails = await getStudentById(osid);
+        
+        setFormData({
+          fullName: studentDetails.fullName || "",
+          gender: studentDetails.gender || "Male",
+          mobile: studentDetails.mobile || "",
+          email: studentDetails.email || "",
+          instituteName: studentDetails.instituteName || "",
+          dob: studentDetails.osCreatedAt ? format(new Date(studentDetails.osCreatedAt), "yyyy-MM-dd") : ""
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "❌ Failed to load profile",
+        description: error instanceof Error ? error.message : "Could not fetch student profile",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchAdminProfile = async (email: string) => {
+    setIsLoading(true);
+    try {
+      const searchResults = await searchAdminByEmail(email);
+      
+      if (searchResults && searchResults.length > 0) {
+        const adminSummary = searchResults[0];
+        const osid = adminSummary.osid;
+        
+        const adminDetails = await getAdminById(osid);
+        
+        setFormData({
+          fullName: adminDetails.name || "",
+          gender: adminDetails.gender || "Male",
+          mobile: adminDetails.mobile || "",
+          email: adminDetails.email || "",
+          instituteName: adminDetails.instituteName || "",
+          dob: adminDetails.osCreatedAt ? format(new Date(adminDetails.osCreatedAt), "yyyy-MM-dd") : ""
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "❌ Failed to load profile",
+        description: error instanceof Error ? error.message : "Could not fetch admin profile",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Get role display name
   const getRoleDisplay = (role: string) => {
@@ -121,9 +234,19 @@ const ViewProfile = () => {
           </div>
         </div>
         
-        <form onSubmit={handleSubmit} className="space-y-6">
+        {isLoading ? (
           <Card className="bg-card shadow-xl border-2 border-border rounded-2xl overflow-hidden">
-            <CardContent className="pt-8 px-8 pb-8 space-y-6">
+            <CardContent className="pt-8 px-8 pb-8">
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <span className="ml-3 text-muted-foreground">Loading profile...</span>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <Card className="bg-card shadow-xl border-2 border-border rounded-2xl overflow-hidden">
+              <CardContent className="pt-8 px-8 pb-8 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField>
                   <Label htmlFor="fullName" className="text-sm font-semibold text-foreground">
@@ -211,43 +334,39 @@ const ViewProfile = () => {
               </div>
 
               {!isAdmin && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <FormField>
-                    <Label htmlFor="instituteName" className="text-sm font-semibold text-foreground">
-                      Institute Name <span className="text-destructive">*</span>
-                    </Label>
-                    <Select
-                      value={formData.instituteName}
-                      onValueChange={(value) => setFormData({ ...formData, instituteName: value })}
-                      disabled={isStudent}
-                    >
-                      <SelectTrigger className={`rounded-lg h-11 ${isStudent ? "bg-muted/50 text-foreground cursor-not-allowed" : ""} ${errors.instituteName ? "border-destructive ring-2 ring-destructive/20" : ""}`}>
-                        <SelectValue placeholder="Select institute" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-popover">
-                        {institutes.map((institute) => (
-                          <SelectItem key={institute} value={institute}>{institute}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {errors.instituteName && <p className="text-sm font-medium text-destructive">{errors.instituteName}</p>}
-                  </FormField>
-                  <FormField>
-                    <Label htmlFor="email" className="text-sm font-semibold text-foreground">
-                      Email ID {!isReadOnly && <span className="text-destructive">*</span>}
-                    </Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className={`rounded-lg h-11 font-medium ${isReadOnly ? "bg-muted/50 text-foreground cursor-not-allowed" : ""} ${errors.email ? "border-destructive ring-2 ring-destructive/20" : ""}`}
-                      placeholder="email@example.com"
-                      disabled={isReadOnly}
-                    />
-                    {errors.email && <p className="text-sm font-medium text-destructive">{errors.email}</p>}
-                  </FormField>
-                </div>
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <FormField>
+                      <Label htmlFor="instituteName" className="text-sm font-semibold text-foreground">
+                        Institute Name <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="instituteName"
+                        value={formData.instituteName}
+                        onChange={(e) => setFormData({ ...formData, instituteName: e.target.value })}
+                        className={`rounded-lg h-11 font-medium ${isStudent || isReadOnly ? "bg-muted/50 text-foreground cursor-not-allowed" : ""} ${errors.instituteName ? "border-destructive ring-2 ring-destructive/20" : ""}`}
+                        placeholder="Enter institute name"
+                        disabled={isStudent || isReadOnly}
+                      />
+                      {errors.instituteName && <p className="text-sm font-medium text-destructive">{errors.instituteName}</p>}
+                    </FormField>
+                    <FormField>
+                      <Label htmlFor="email" className="text-sm font-semibold text-foreground">
+                        Email ID {!isReadOnly && <span className="text-destructive">*</span>}
+                      </Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={formData.email}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        className={`rounded-lg h-11 font-medium ${isReadOnly ? "bg-muted/50 text-foreground cursor-not-allowed" : ""} ${errors.email ? "border-destructive ring-2 ring-destructive/20" : ""}`}
+                        placeholder="email@example.com"
+                        disabled={isReadOnly}
+                      />
+                      {errors.email && <p className="text-sm font-medium text-destructive">{errors.email}</p>}
+                    </FormField>
+                  </div>
+                </>
               )}
 
               {isAdmin && (
@@ -293,6 +412,7 @@ const ViewProfile = () => {
             </div>
           )}
         </form>
+        )}
       </div>
     </DashboardLayout>
   );

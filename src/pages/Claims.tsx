@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
-import { Plus, ArrowUpDown, ArrowUp, ArrowDown, Trash2, Loader2 } from "lucide-react";
+import { Plus, ArrowUpDown, ArrowUp, ArrowDown, Trash2, Loader2, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Claim } from "@/data/claimsData";
+import { searchStudentByEmail, getStudentById, downloadStudentCertificate, requestClaim } from "@/lib/api";
 import {
   Table,
   TableBody,
@@ -42,44 +43,79 @@ const Claims = () => {
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [isLoadingClaims, setIsLoadingClaims] = useState(false);
+
+  // Helper function to mask claim ID
+  const maskClaimId = (id: string) => {
+    if (!id || id.length <= 8) return id;
+    const lastFour = id.slice(-4);
+    return `****-****-${lastFour}`;
+  };
+
+  // Fetch claims from API
+  const fetchClaims = async () => {
+    setIsLoadingClaims(true);
+    try {
+      const userEmail = localStorage.getItem("userEmail") || "";
+      
+      // Search student by email to get osid
+      const searchResults = await searchStudentByEmail(userEmail);
+      
+      if (!searchResults || searchResults.length === 0) {
+        setClaims([]);
+        return;
+      }
+      
+      const osid = searchResults[0].osid;
+      
+      // Get student details including attestations
+      const studentData = await getStudentById(osid);
+      
+      // Parse studentInstituteAttest array
+      const attestations = studentData.studentInstituteAttest || [];
+      
+      const claimsData: Claim[] = attestations.map((attest: any) => ({
+        id: attest.osid || attest._osAttestedId || `claim-${Date.now()}-${Math.random()}`,
+        studentName: studentData.fullName || userEmail.split("@")[0],
+        instituteName: attest.instituteName || "Unknown Institute",
+        teacherName: attest._osAttestedBy || undefined,
+        dateRequested: attest.osCreatedAt || new Date().toISOString(),
+        dateApproved: attest._osState === "PUBLISHED" ? attest.osUpdatedAt : undefined,
+        status: attest._osState === "PUBLISHED" ? "approved" : "pending",
+        attestationId: attest.osid,
+      }));
+      
+      setClaims(claimsData);
+    } catch (error) {
+      console.error("Error fetching claims:", error);
+      toast({
+        title: "❌ Failed to load claims",
+        description: error instanceof Error ? error.message : "Could not fetch claims data",
+        variant: "destructive",
+      });
+      setClaims([]);
+    } finally {
+      setIsLoadingClaims(false);
+    }
+  };
 
   useEffect(() => {
-    // Get student's name from email
-    const userEmail = localStorage.getItem("userEmail") || "";
-    const studentName = userEmail.split("@")[0];
-    
-    // Add some initial mock claims with various statuses
-    const initialClaims: Claim[] = [
-      {
-        id: "claim-1",
-        studentName: studentName.charAt(0).toUpperCase() + studentName.slice(1),
-        instituteName: "Royal University of Science and Technology",
-        teacherName: "Dr. Sarah Johnson",
-        dateRequested: "2024-11-18",
-        dateApproved: "2024-11-19",
-        status: "approved",
-      },
-      {
-        id: "claim-2",
-        studentName: studentName.charAt(0).toUpperCase() + studentName.slice(1),
-        instituteName: "National University of Management",
-        dateRequested: "2024-11-17",
-        status: "pending",
-      },
-      {
-        id: "claim-3",
-        studentName: studentName.charAt(0).toUpperCase() + studentName.slice(1),
-        instituteName: "Institute of Technology of Cambodia",
-        dateRequested: "2024-11-15",
-        status: "rejected",
-      },
-    ];
-    
-    setClaims(initialClaims);
+    fetchClaims();
   }, []);
 
-  // Sort claims by date
+  // Sort claims: approved/published first, then by date
   const sortedClaims = [...claims].sort((a, b) => {
+    // First, sort by status - approved claims first
+    const statusOrder = { approved: 0, pending: 1, rejected: 2 };
+    const statusA = statusOrder[a.status as keyof typeof statusOrder] ?? 3;
+    const statusB = statusOrder[b.status as keyof typeof statusOrder] ?? 3;
+    
+    if (statusA !== statusB) {
+      return statusA - statusB;
+    }
+    
+    // Then sort by date within same status
     if (!sortOrder) return 0;
     const dateA = new Date(a.dateRequested).getTime();
     const dateB = new Date(b.dateRequested).getTime();
@@ -120,28 +156,28 @@ const Claims = () => {
     setShowConfirmDialog(true);
   };
 
-  const handleConfirmRequest = () => {
+  const handleConfirmRequest = async () => {
     setShowConfirmDialog(false);
     setShowRequestDialog(true);
     setIsLoading(true);
     setShowSuccess(false);
     
-    // Simulate loading for 2-3 seconds
-    setTimeout(() => {
+    try {
+      // Get student osid from localStorage
+      const studentOsid = localStorage.getItem("studentOsid") || "";
+      
+      if (!studentOsid) {
+        throw new Error("Student ID not found. Please login again.");
+      }
+      
+      // Call API to request claim
+      await requestClaim(studentOsid);
+      
       setIsLoading(false);
       setShowSuccess(true);
       
-      // Add new claim to the table
-      const userEmail = localStorage.getItem("userEmail") || "";
-      const studentName = userEmail.split("@")[0];
-      const newClaim: Claim = {
-        id: `claim-${Date.now()}`,
-        studentName: studentName.charAt(0).toUpperCase() + studentName.slice(1),
-        instituteName: "Royal University of Phnom Penh",
-        dateRequested: new Date().toISOString(),
-        status: "pending",
-      };
-      setClaims(prev => [newClaim, ...prev]);
+      // Refresh claims list to show the new claim
+      await fetchClaims();
       
       // Auto-close dialog after 2-3 seconds
       setTimeout(() => {
@@ -149,7 +185,15 @@ const Claims = () => {
         setIsLoading(false);
         setShowSuccess(false);
       }, 2500);
-    }, 2500);
+    } catch (error) {
+      setIsLoading(false);
+      setShowRequestDialog(false);
+      toast({
+        title: "❌ Failed to request claim",
+        description: error instanceof Error ? error.message : "Could not submit claim request",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleDelete = async () => {
@@ -169,6 +213,53 @@ const Claims = () => {
     }
   };
 
+  const handleDownloadCertificate = async (claim: Claim) => {
+    setDownloadingId(claim.id);
+    try {
+      const userEmail = localStorage.getItem("userEmail") || "";
+      
+      // Search student to get osid
+      const searchResults = await searchStudentByEmail(userEmail);
+      if (!searchResults || searchResults.length === 0) {
+        throw new Error("Student not found");
+      }
+      
+      const studentId = searchResults[0].osid;
+      const attestationName = "studentInstituteAttest";
+      const attestationId = claim.attestationId || "";
+      
+      if (!attestationId) {
+        throw new Error("Attestation ID not found");
+      }
+      
+      const blob = await downloadStudentCertificate(studentId, attestationName, attestationId);
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `certificate-${claim.instituteName.replace(/\s+/g, "-")}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast({
+        title: "✅ Certificate downloaded",
+        description: "Your certificate has been downloaded successfully.",
+        variant: "success",
+      });
+    } catch (error) {
+      toast({
+        title: "❌ Download failed",
+        description: error instanceof Error ? error.message : "Could not download certificate",
+        variant: "destructive",
+      });
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -184,43 +275,36 @@ const Claims = () => {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50 hover:bg-muted/50">
-                <TableHead className="font-bold text-foreground">Institute Name</TableHead>
-                <TableHead className="font-bold text-foreground">Teacher Name</TableHead>
-                <TableHead className="font-bold text-foreground">
-                  <button
-                    onClick={toggleSort}
-                    className="flex items-center gap-2 hover:text-primary transition-colors font-bold"
-                  >
-                    Date
-                    {getSortIcon()}
-                  </button>
-                </TableHead>
+                <TableHead className="font-bold text-foreground">Claim ID</TableHead>
                 <TableHead className="font-bold text-foreground">Status</TableHead>
-                <TableHead className="w-[80px]"></TableHead>
+                <TableHead className="font-bold text-foreground">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedClaims.length === 0 ? (
+              {isLoadingClaims ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={3} className="text-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
+                    <p className="text-muted-foreground mt-2">Loading claims...</p>
+                  </TableCell>
+                </TableRow>
+              ) : sortedClaims.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
                     No claims found. Click "Request For Claim" to submit a new request.
                   </TableCell>
                 </TableRow>
               ) : (
                 sortedClaims.map((claim) => (
                   <TableRow key={claim.id} className="hover:bg-muted/30 transition-colors">
-                    <TableCell className="font-semibold text-foreground">{claim.instituteName}</TableCell>
-                    <TableCell className="font-medium">
-                      {claim.status === "approved" && claim.teacherName ? claim.teacherName : "-"}
-                    </TableCell>
-                    <TableCell>
+                    <TableCell className="font-mono text-sm text-foreground">
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <span className="cursor-help">{formatDistanceToNow(new Date(claim.dateRequested), { addSuffix: true })}</span>
+                            <span className="cursor-help">{maskClaimId(claim.attestationId || claim.id)}</span>
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p>{new Date(claim.dateRequested).toLocaleString()}</p>
+                            <p className="font-mono text-xs">{claim.attestationId || claim.id}</p>
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
@@ -230,25 +314,42 @@ const Claims = () => {
                         className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
                           claim.status === "approved"
                             ? "bg-green-100 text-green-800"
-                            : claim.status === "pending"
-                            ? "bg-yellow-100 text-yellow-800"
-                            : "bg-red-100 text-red-800"
+                            : "bg-yellow-100 text-yellow-800"
                         }`}
                       >
                         {claim.status.charAt(0).toUpperCase() + claim.status.slice(1)}
                       </span>
                     </TableCell>
                     <TableCell>
-                      {claim.status === "pending" && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setDeleteId(claim.id)}
-                          className="hover:bg-destructive/10 hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
+                      <div className="flex gap-2">
+                        {claim.status === "approved" && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDownloadCertificate(claim)}
+                            disabled={downloadingId === claim.id}
+                            className="hover:bg-green-100 hover:text-green-700"
+                            title="Download Certificate"
+                          >
+                            {downloadingId === claim.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Download className="h-4 w-4" />
+                            )}
+                          </Button>
+                        )}
+                        {claim.status === "pending" && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setDeleteId(claim.id)}
+                            disabled
+                            className="hover:bg-destructive/10 hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))

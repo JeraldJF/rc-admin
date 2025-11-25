@@ -2,8 +2,7 @@ import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { mockClaims, Claim } from "@/data/claimsData";
-import { mockEntities } from "@/data/mockData";
+import { getTeacherClaims, attestClaim, Claim as ApiClaim } from "@/lib/api";
 import {
   Table,
   TableBody,
@@ -19,54 +18,74 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { formatDistanceToNow } from "date-fns";
-import { ArrowUpDown, ArrowUp, ArrowDown, Clock } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, Clock, Loader2 } from "lucide-react";
 
 type SortOrder = "asc" | "desc" | null;
+
+interface ClaimData {
+  id: string;
+  studentName: string;
+  email: string;
+  instituteName: string;
+  status: string;
+  requestedOn: string;
+}
 
 const PendingClaims = () => {
   const { toast } = useToast();
   const [userRole, setUserRole] = useState<string>("");
-  const [teacherInstitute, setTeacherInstitute] = useState<string>("");
+  const [claims, setClaims] = useState<ClaimData[]>([]);
+  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
+  const [isLoading, setIsLoading] = useState(false);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
   
   useEffect(() => {
     const role = localStorage.getItem("userRole") || "admin";
-    const userEmail = localStorage.getItem("userEmail") || "";
     setUserRole(role);
     
-    // Get teacher's institute for filtering
+    // Fetch pending claims for teachers
     if (role === "teacher") {
-      const teacher = mockEntities.find(e => e.schema === "Teacher" && e.email === userEmail);
-      if (teacher) {
-        setTeacherInstitute(teacher.instituteName);
-      }
+      fetchPendingClaims();
     }
   }, []);
   
-  // Filter claims based on role
-  const getFilteredClaims = () => {
-    const pendingClaims = mockClaims.filter((claim) => claim.status === "pending");
-    
-    // For teachers, only show pending claims from their institute
-    if (userRole === "teacher" && teacherInstitute) {
-      return pendingClaims.filter((claim) => claim.instituteName === teacherInstitute);
+  const fetchPendingClaims = async () => {
+    setIsLoading(true);
+    try {
+      const response = await getTeacherClaims();
+      
+      // Filter for OPEN status claims and transform data
+      const pendingClaims: ClaimData[] = response.content
+        .filter((claim: ApiClaim) => claim.status === "OPEN")
+        .map((claim: ApiClaim) => {
+          const propertyData = JSON.parse(claim.propertyData);
+          return {
+            id: claim.id,
+            studentName: propertyData.fullName || claim.requestorName,
+            email: propertyData.email || claim.requestorName,
+            instituteName: propertyData.instituteName || "",
+            status: "pending",
+            requestedOn: claim.createdAt,
+          };
+        });
+      
+      setClaims(pendingClaims);
+    } catch (error) {
+      toast({
+        title: "❌ Failed to load claims",
+        description: error instanceof Error ? error.message : "Could not fetch pending claims",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
-    
-    return pendingClaims;
   };
-  
-  const [claims, setClaims] = useState<Claim[]>(getFilteredClaims());
-  const [sortOrder, setSortOrder] = useState<SortOrder>(null);
-  
-  // Update claims when role or institute changes
-  useEffect(() => {
-    setClaims(getFilteredClaims());
-  }, [userRole, teacherInstitute]);
 
   // Sort claims by date
   const sortedClaims = [...claims].sort((a, b) => {
     if (!sortOrder) return 0;
-    const dateA = new Date(a.dateRequested).getTime();
-    const dateB = new Date(b.dateRequested).getTime();
+    const dateA = new Date(a.requestedOn).getTime();
+    const dateB = new Date(b.requestedOn).getTime();
     return sortOrder === "desc" ? dateB - dateA : dateA - dateB;
   });
 
@@ -84,13 +103,26 @@ const PendingClaims = () => {
     return <ArrowUpDown className="h-4 w-4" />;
   };
 
-  const handleApprove = (claimId: string) => {
-    setClaims((prev) => prev.filter((claim) => claim.id !== claimId));
-    toast({
-      title: "✅ Claim approved",
-      description: "The claim has been successfully approved.",
-      variant: "success",
-    });
+  const handleApprove = async (claimId: string) => {
+    setApprovingId(claimId);
+    try {
+      await attestClaim(claimId);
+      
+      setClaims((prev) => prev.filter((claim) => claim.id !== claimId));
+      toast({
+        title: "✅ Claim approved",
+        description: "The claim has been successfully approved.",
+        variant: "success",
+      });
+    } catch (error) {
+      toast({
+        title: "❌ Failed to approve claim",
+        description: error instanceof Error ? error.message : "Could not approve the claim",
+        variant: "destructive",
+      });
+    } finally {
+      setApprovingId(null);
+    }
   };
 
   const handleReject = (claimId: string) => {
@@ -112,9 +144,17 @@ const PendingClaims = () => {
           <h1 className="text-2xl font-bold text-foreground">Pending Claims</h1>
         </div>
 
-        <div className="rounded-xl border border-border bg-card overflow-hidden shadow-lg">
-          <Table>
-            <TableHeader>
+        {isLoading ? (
+          <div className="rounded-xl border border-border bg-card overflow-hidden shadow-lg p-12">
+            <div className="flex items-center justify-center">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <span className="ml-3 text-muted-foreground">Loading pending claims...</span>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-xl border border-border bg-card overflow-hidden shadow-lg">
+            <Table>
+              <TableHeader>
               <TableRow className="bg-muted/50 hover:bg-muted/50">
                 <TableHead className="font-bold text-foreground">
                   <div className="flex items-center gap-2">
@@ -157,11 +197,11 @@ const PendingClaims = () => {
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <span className="cursor-help">
-                              {formatDistanceToNow(new Date(claim.dateRequested), { addSuffix: true })}
+                              {formatDistanceToNow(new Date(claim.requestedOn), { addSuffix: true })}
                             </span>
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p>{new Date(claim.dateRequested).toLocaleString()}</p>
+                            <p>{new Date(claim.requestedOn).toLocaleString()}</p>
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
@@ -171,13 +211,22 @@ const PendingClaims = () => {
                         <Button
                           size="sm"
                           onClick={() => handleApprove(claim.id)}
+                          disabled={approvingId === claim.id}
                           className="bg-green-600 hover:bg-green-700"
                         >
-                          Approve
+                          {approvingId === claim.id ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                              Approving...
+                            </>
+                          ) : (
+                            "Approve"
+                          )}
                         </Button>
                         <Button
                           size="sm"
                           variant="destructive"
+                          disabled
                           onClick={() => handleReject(claim.id)}
                         >
                           Reject
@@ -190,6 +239,7 @@ const PendingClaims = () => {
             </TableBody>
           </Table>
         </div>
+        )}
       </div>
     </DashboardLayout>
   );

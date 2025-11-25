@@ -150,14 +150,17 @@ export const TopBar = ({ title }: TopBarProps) => {
         </Select>
         <div className="flex items-center gap-3 pl-4 border-l border-border">
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+            <DropdownMenuTrigger asChild disabled={userRole === "admin"}>
               <button 
                 className={cn(
                   "flex items-center gap-3 transition-all focus:outline-none rounded-lg px-3 py-2 border-2",
-                  isProfilePage 
-                    ? "bg-primary/10 border-primary/20 ring-2 ring-primary/20" 
-                    : "border-transparent hover:bg-primary/10 hover:border-primary hover:text-primary"
+                  userRole === "admin" 
+                    ? "opacity-50 cursor-not-allowed border-transparent" 
+                    : isProfilePage 
+                      ? "bg-primary/10 border-primary/20 ring-2 ring-primary/20" 
+                      : "border-transparent hover:bg-primary/10 hover:border-primary hover:text-primary"
                 )}
+                disabled={userRole === "admin"}
               >
                 <div className={cn(
                   "h-9 w-9 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-md transition-all",

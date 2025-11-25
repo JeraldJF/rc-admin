@@ -4,12 +4,24 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, Pencil, Eye } from "lucide-react";
-import { mockEntities, Entity } from "@/data/mockData";
+import { getTeacherById, getStudentById } from "@/lib/api";
+import { format } from "date-fns";
+
+interface EntityData {
+  name?: string;
+  fullName?: string;
+  email: string;
+  mobile?: string;
+  gender?: string;
+  instituteName?: string;
+  dob?: string;
+  subject?: string;
+}
 
 const ViewEntity = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [entity, setEntity] = useState<Entity | null>(null);
+  const [entity, setEntity] = useState<EntityData | null>(null);
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string>("admin");
 
@@ -19,12 +31,31 @@ const ViewEntity = () => {
   }, []);
 
   useEffect(() => {
-    // Simulate loading
-    setTimeout(() => {
-      const found = mockEntities.find((e) => e.id === id);
-      setEntity(found || null);
-      setLoading(false);
-    }, 300);
+    const fetchEntity = async () => {
+      if (!id) return;
+      
+      setLoading(true);
+      try {
+        const role = localStorage.getItem("userRole") || "admin";
+        
+        if (role === "admin") {
+          // Fetch teacher data
+          const data = await getTeacherById(id);
+          setEntity(data);
+        } else {
+          // Fetch student data
+          const data = await getStudentById(id);
+          setEntity(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch entity:", error);
+        setEntity(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchEntity();
   }, [id]);
 
   if (loading) {
@@ -77,7 +108,7 @@ const ViewEntity = () => {
               <div className="flex items-center gap-3">
                 <Eye className="h-6 w-6 text-primary" />
                 <h2 className="text-2xl font-bold text-foreground">
-                  {entity.schema === "Student" ? entity.fullName : entity.name}
+                  {entity.fullName || entity.name}
                 </h2>
               </div>
               <Button onClick={() => navigate(`/entity/${id}/edit`)} className="gap-2 font-semibold rounded-lg">
@@ -87,16 +118,14 @@ const ViewEntity = () => {
             </div>
 
             <div className="grid grid-cols-2 gap-6">
-              {entity.schema === "Student" ? (
+              {userRole === "teacher" ? (
                 <>
                   <InfoRow label="Full Name" value={entity.fullName} />
                   <InfoRow label="Institute Name" value={entity.instituteName} />
-                  <InfoRow label="Date of Birth" value={entity.dob} />
+                  <InfoRow label="Date of Birth" value={entity.dob ? format(new Date(entity.dob), "PPP") : undefined} />
                   <InfoRow label="Gender" value={entity.gender} />
                   <InfoRow label="Mobile number" value={entity.mobile} />
                   <InfoRow label="Email ID" value={entity.email} />
-                  <InfoRow label="Created" value={new Date(entity.created).toLocaleString()} />
-                  <InfoRow label="Updated" value={new Date(entity.updated).toLocaleString()} />
                 </>
               ) : (
                 <>
@@ -105,9 +134,8 @@ const ViewEntity = () => {
                   <InfoRow label="Mobile" value={entity.mobile} />
                   <InfoRow label="Email" value={entity.email} />
                   <InfoRow label="Institute Name" value={entity.instituteName} />
-                  <InfoRow label="Date of Birth" value={entity.dob} />
-                  <InfoRow label="Created" value={new Date(entity.created).toLocaleString()} />
-                  <InfoRow label="Updated" value={new Date(entity.updated).toLocaleString()} />
+                  <InfoRow label="Subject" value={entity.subject} />
+                  <InfoRow label="Date of Birth" value={entity.dob ? format(new Date(entity.dob), "PPP") : undefined} />
                 </>
               )}
             </div>

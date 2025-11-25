@@ -14,7 +14,6 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { mockEntities, Entity } from "@/data/mockData";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -28,28 +27,103 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { searchAllTeachers, searchAllStudents } from "@/lib/api";
 
 type SortOrder = "asc" | "desc" | null;
 type SortField = "created" | "updated" | null;
+
+interface EntityData {
+  id: string;
+  name: string;
+  email: string;
+  instituteName: string;
+  mobile?: string;
+  created: string;
+  updated: string;
+}
 
 const Registry = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
-  const [entities, setEntities] = useState<Entity[]>(mockEntities);
+  const [entities, setEntities] = useState<EntityData[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [userRole, setUserRole] = useState<string>("admin");
-  const [sortField, setSortField] = useState<SortField>(null);
-  const [sortOrder, setSortOrder] = useState<SortOrder>(null);
+  const [sortField, setSortField] = useState<SortField>("created");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const recordsPerPage = 10;
 
   useEffect(() => {
     const role = localStorage.getItem("userRole") || "admin";
     setUserRole(role);
+    
+    // Fetch entities based on role
+    if (role === "admin") {
+      fetchTeachers();
+    } else if (role === "teacher") {
+      fetchStudents();
+    }
   }, []);
+
+  const fetchTeachers = async () => {
+    setIsLoading(true);
+    try {
+      const response = await searchAllTeachers();
+      
+      // Transform API response to EntityData format
+      const teacherData: EntityData[] = response.map((teacher: any) => ({
+        id: teacher.osid,
+        name: teacher.name,
+        email: teacher.email,
+        instituteName: teacher.instituteName,
+        mobile: teacher.mobile,
+        created: teacher.osCreatedAt,
+        updated: teacher.osUpdatedAt,
+      }));
+      
+      setEntities(teacherData);
+    } catch (error) {
+      toast({
+        title: "❌ Failed to load teachers",
+        description: error instanceof Error ? error.message : "Could not fetch teachers list",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchStudents = async () => {
+    setIsLoading(true);
+    try {
+      const response = await searchAllStudents();
+      
+      // Transform API response to EntityData format
+      const studentData: EntityData[] = response.map((student: any) => ({
+        id: student.osid,
+        name: student.fullName,
+        email: student.email,
+        instituteName: student.instituteName,
+        mobile: student.mobile,
+        created: student.osCreatedAt,
+        updated: student.osUpdatedAt,
+      }));
+      
+      setEntities(studentData);
+    } catch (error) {
+      toast({
+        title: "❌ Failed to load students",
+        description: error instanceof Error ? error.message : "Could not fetch students list",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Handle search query from URL parameters
   useEffect(() => {
@@ -59,20 +133,8 @@ const Registry = () => {
     }
   }, [searchParams]);
 
-  // Get teacher's institute for filtering (when role is teacher)
-  const teacherInstitute = userRole === "teacher" 
-    ? mockEntities.find(e => e.schema === "Teacher" && e.email === localStorage.getItem("userEmail"))?.instituteName 
-    : null;
-
   const filteredEntities = entities.filter((entity) => {
-    const displayName = entity.schema === "Student" ? entity.fullName : entity.name;
-    const matchesSearch = displayName?.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    // For teachers, only show students from their institute
-    if (userRole === "teacher" && teacherInstitute) {
-      return matchesSearch && entity.schema === "Student" && entity.instituteName === teacherInstitute;
-    }
-    
+    const matchesSearch = entity.name?.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesSearch;
   });
 
@@ -184,9 +246,9 @@ const Registry = () => {
               <TableHeader>
               <TableRow className="bg-muted/50 hover:bg-muted/50">
                 <TableHead className="font-bold text-foreground">Name</TableHead>
-                {userRole === "admin" && (
+                {/* {userRole === "admin" && (
                   <TableHead className="font-bold text-foreground">Institute Name</TableHead>
-                )}
+                )} */}
                 <TableHead className="font-bold text-foreground">
                   <button
                     onClick={() => toggleSort("created")}
@@ -212,11 +274,11 @@ const Registry = () => {
                 {paginatedEntities.map((entity) => (
                 <TableRow key={entity.id} className="hover:bg-muted/30 transition-colors">
                   <TableCell className="font-semibold text-foreground">
-                    {entity.schema === "Student" ? entity.fullName : entity.name}
+                    {entity.name}
                   </TableCell>
-                  {userRole === "admin" && (
+                  {/* {userRole === "admin" && (
                     <TableCell className="font-medium">{entity.instituteName}</TableCell>
-                  )}
+                  )} */}
                   <TableCell>
                     <TooltipProvider>
                       <Tooltip>
@@ -274,7 +336,8 @@ const Registry = () => {
                           <TooltipContent>Edit</TooltipContent>
                         </Tooltip>
                         
-                        <Tooltip>
+                        {/* Delete button disabled for now */}
+                        {/* <Tooltip>
                           <TooltipTrigger asChild>
                             <Button
                               variant="ghost"
@@ -285,7 +348,7 @@ const Registry = () => {
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>Delete</TooltipContent>
-                        </Tooltip>
+                        </Tooltip> */}
                       </div>
                     </TooltipProvider>
                   </TableCell>

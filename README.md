@@ -32,9 +32,28 @@ cd <YOUR_PROJECT_NAME>
 # Step 3: Install the necessary dependencies.
 npm i
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Step 4: Set up environment variables.
+# Copy the example environment file and configure it with your API URL
+cp .env.example .env
+# Edit .env and set VITE_API_BASE_URL to your backend API server URL
+
+# Step 5: Start the development server with auto-reloading and an instant preview.
 npm run dev
 ```
+
+## Environment Configuration
+
+Before running the project, you need to configure the environment variables:
+
+1. Copy `.env.example` to `.env`:
+   ```sh
+   cp .env.example .env
+   ```
+
+2. Edit `.env` and set the following variables:
+   - `VITE_API_BASE_URL`: Your backend API server URL (e.g., `http://your-api-server:port`)
+
+**Important**: Never commit the `.env` file to version control as it may contain sensitive information.
 
 **Edit a file directly in GitHub**
 

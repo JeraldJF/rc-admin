@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Fingerprint, Loader2 } from "lucide-react";
+import { Fingerprint, Loader2, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { loginApi, setAuthToken, searchStudentByEmail } from "@/lib/api";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -15,27 +16,25 @@ const Login = () => {
   const [role, setRole] = useState<"admin" | "teacher" | "student">("admin");
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [showPassword, setShowPassword] = useState(false);
+
+  const handlePasswordVisibilityToggle = () => {
+    setShowPassword(true);
+    setTimeout(() => {
+      setShowPassword(false);
+    }, 1000);
+  };
 
   const validateField = (fieldName: "email" | "password", value: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    
     if (fieldName === "email") {
       if (!value) {
-        return "Email is required";
-      } else if (!emailRegex.test(value)) {
-        return "Please enter a valid email";
+        return "Username is required";
       }
     }
     
     if (fieldName === "password") {
       if (!value) {
         return "Password is required";
-      } else if (value.length < 8) {
-        return "Password must be at least 8 characters";
-      } else if (!/[A-Z]/.test(value)) {
-        return "Password must contain at least one uppercase letter";
-      } else if (!/[0-9]/.test(value)) {
-        return "Password must contain at least one number";
       }
     }
     
@@ -60,25 +59,54 @@ const Login = () => {
     
     if (validateForm()) {
       setIsLoading(true);
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1200));
       
-      localStorage.setItem("isLoggedIn", "true");
-      localStorage.setItem("userEmail", email);
-      localStorage.setItem("userRole", role);
-      toast({
-        title: "🎉 Login successful",
-        description: "Welcome back!",
-        variant: "success",
-      });
-      
-      // Navigate based on role
-      if (role === "student") {
-        navigate("/claims");
-      } else {
-        navigate("/registry");
+      try {
+        // Call login API
+        const response = await loginApi(email, password);
+        
+        // Store access token
+        setAuthToken(response.access_token);
+        
+        // Store user details
+        localStorage.setItem("isLoggedIn", "true");
+        localStorage.setItem("userEmail", email);
+        localStorage.setItem("userRole", role);
+        
+        // If student, fetch and store their osid
+        if (role === "student") {
+          try {
+            const searchResults = await searchStudentByEmail(email);
+            if (searchResults && searchResults.length > 0) {
+              const studentOsid = searchResults[0].osid;
+              localStorage.setItem("studentOsid", studentOsid);
+            }
+          } catch (error) {
+            console.error("Failed to fetch student osid:", error);
+            // Continue with login even if osid fetch fails
+          }
+        }
+        
+        toast({
+          title: "🎉 Login successful",
+          description: "Welcome back!",
+          variant: "success",
+        });
+        
+        // Navigate based on role
+        if (role === "student") {
+          navigate("/claims");
+        } else {
+          navigate("/registry");
+        }
+      } catch (error) {
+        toast({
+          title: "❌ Login failed",
+          description: error instanceof Error ? error.message : "Invalid credentials. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     }
   };
 
@@ -96,17 +124,17 @@ const Login = () => {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-foreground font-semibold">Email</Label>
+              <Label htmlFor="email" className="text-foreground font-semibold">Username</Label>
               <Input
                 id="email"
-                type="email"
+                type="text"
                 value={email}
                 onChange={(e) => {
                   setEmail(e.target.value);
                   const error = validateField("email", e.target.value);
                   setErrors(prev => ({ ...prev, email: error || undefined }));
                 }}
-                placeholder="admin@example.com"
+                placeholder="Enter your username"
                 className={errors.email ? "border-destructive" : ""}
               />
               {errors.email && (
@@ -116,18 +144,31 @@ const Login = () => {
 
             <div className="space-y-2">
               <Label htmlFor="password" className="text-foreground font-semibold">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  const error = validateField("password", e.target.value);
-                  setErrors(prev => ({ ...prev, password: error || undefined }));
-                }}
-                placeholder="••••••••"
-                className={errors.password ? "border-destructive" : ""}
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    const error = validateField("password", e.target.value);
+                    setErrors(prev => ({ ...prev, password: error || undefined }));
+                  }}
+                  placeholder="••••••••"
+                  className={errors.password ? "border-destructive pr-10" : "pr-10"}
+                />
+                <button
+                  type="button"
+                  onClick={handlePasswordVisibilityToggle}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {showPassword ? (
+                    <Eye className="h-4 w-4" />
+                  ) : (
+                    <EyeOff className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
               {errors.password && (
                 <p className="text-sm text-destructive">{errors.password}</p>
               )}
