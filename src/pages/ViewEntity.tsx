@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,6 +20,7 @@ interface EntityData {
 }
 
 const ViewEntity = () => {
+  const { t } = useLanguage();
   const { id } = useParams();
   const navigate = useNavigate();
   const [entity, setEntity] = useState<EntityData | null>(null);
@@ -72,9 +74,9 @@ const ViewEntity = () => {
     return (
       <DashboardLayout>
         <div className="text-center py-12">
-          <h2 className="text-2xl font-bold">Entity not found</h2>
+          <h2 className="text-2xl font-bold">{t("error.entity_not_found")}</h2>
           <Button onClick={() => navigate("/registry")} className="mt-4">
-            Back to Registry
+            {t("btn.back_to_registry")}
           </Button>
         </div>
       </DashboardLayout>
@@ -88,7 +90,7 @@ const ViewEntity = () => {
     </div>
   );
 
-  const pageTitle = userRole === "admin" ? "View Teacher Details" : "View Student Details";
+  const pageTitle = userRole === "admin" ? t("heading.view_teacher") : t("heading.view_student");
 
   return (
     <DashboardLayout>
@@ -96,7 +98,7 @@ const ViewEntity = () => {
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={() => navigate("/registry")} className="gap-2 hover:bg-accent transition-colors rounded-lg">
             <ArrowLeft className="h-4 w-4" />
-            <span className="font-semibold">Back</span>
+            <span className="font-semibold">{t("btn.back")}</span>
           </Button>
           <div className="h-6 w-px bg-border"></div>
           <h1 className="text-2xl font-bold text-foreground">{pageTitle}</h1>
@@ -113,29 +115,29 @@ const ViewEntity = () => {
               </div>
               <Button onClick={() => navigate(`/entity/${id}/edit`)} className="gap-2 font-semibold rounded-lg">
                 <Pencil className="h-4 w-4" />
-                Edit
+                {t("btn.edit")}
               </Button>
             </div>
 
             <div className="grid grid-cols-2 gap-6">
               {userRole === "teacher" ? (
                 <>
-                  <InfoRow label="Full Name" value={entity.fullName} />
-                  <InfoRow label="Institute Name" value={entity.instituteName} />
-                  <InfoRow label="Date of Birth" value={entity.dob ? format(new Date(entity.dob), "PPP") : undefined} />
-                  <InfoRow label="Gender" value={entity.gender} />
-                  <InfoRow label="Mobile number" value={entity.mobile} />
-                  <InfoRow label="Email ID" value={entity.email} />
+                  <InfoRow label={t("form.full_name")} value={entity.fullName} />
+                  <InfoRow label={t("form.institute_name")} value={entity.instituteName} />
+                  <InfoRow label={t("form.date_of_birth")} value={entity.dob ? format(new Date(entity.dob), "PPP") : undefined} />
+                  <InfoRow label={t("form.gender")} value={entity.gender} />
+                  <InfoRow label={t("form.mobile")} value={entity.mobile} />
+                  <InfoRow label={t("form.email")} value={entity.email} />
                 </>
               ) : (
                 <>
-                  <InfoRow label="Name" value={entity.name} />
-                  <InfoRow label="Gender" value={entity.gender} />
-                  <InfoRow label="Mobile" value={entity.mobile} />
-                  <InfoRow label="Email" value={entity.email} />
-                  <InfoRow label="Institute Name" value={entity.instituteName} />
-                  <InfoRow label="Subject" value={entity.subject} />
-                  <InfoRow label="Date of Birth" value={entity.dob ? format(new Date(entity.dob), "PPP") : undefined} />
+                  <InfoRow label={t("form.name")} value={entity.name} />
+                  <InfoRow label={t("form.gender")} value={entity.gender} />
+                  <InfoRow label={t("form.mobile")} value={entity.mobile} />
+                  <InfoRow label={t("form.email")} value={entity.email} />
+                  <InfoRow label={t("form.institute_name")} value={entity.instituteName} />
+                  <InfoRow label={t("form.subject")} value={entity.subject} />
+                  <InfoRow label={t("form.date_of_birth")} value={entity.dob ? format(new Date(entity.dob), "PPP") : undefined} />
                 </>
               )}
             </div>

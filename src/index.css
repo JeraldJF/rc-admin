@@ -8,83 +8,90 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 220 15% 20%;
+    /* Core surfaces */
+    --background: 216 33% 99%; /* very light cool gray */
+    --foreground: 222 47% 18%; /* dark slate for text */
 
     --card: 0 0% 100%;
-    --card-foreground: 220 15% 20%;
+    --card-foreground: var(--foreground);
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 15% 20%;
+    --popover-foreground: var(--foreground);
 
-    --primary: 218 89% 35%;
+    /* Brand + accent (education theme: indigo + teal + golden accent) */
+    --primary: 243 75% 58%; /* indigo */
     --primary-foreground: 0 0% 100%;
-
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 220 15% 20%;
-
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 10% 45%;
-
-    --accent: 218 89% 35%;
+    --accent: 188 72% 42%; /* teal */
     --accent-foreground: 0 0% 100%;
+    --secondary: 218 30% 93%; /* soft panel */
+    --secondary-foreground: var(--foreground);
 
-    --destructive: 0 84% 60%;
+    --muted: 218 25% 92%;
+    --muted-foreground: 218 15% 45%;
+
+    --info: 200 90% 52%;
+    --info-foreground: 0 0% 100%;
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 40 95% 55%;
+    --warning-foreground: 0 0% 15%;
+    --destructive: 0 78% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 218 89% 35%;
+    /* Borders & inputs */
+    --border: 218 20% 85%;
+    --input: 218 20% 90%;
+    --ring: var(--primary);
 
-    --radius: 0.5rem;
+    /* Radii */
+    --radius: 0.65rem;
 
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 220 15% 20%;
-    --sidebar-primary: 218 89% 35%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 14% 96%;
-    --sidebar-accent-foreground: 220 15% 20%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 218 89% 35%;
+    /* Elevation shadows (used via shadow-* utilities, here for reference) */
+    --shadow-color: 222 47% 18%;
+
+    /* Gradient tokens */
+    --gradient-brand: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
+    --gradient-soft: linear-gradient(135deg, hsl(var(--primary)/0.08) 0%, hsl(var(--accent)/0.08) 100%);
+    --gradient-focus: linear-gradient(90deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 50%, hsl(var(--primary)) 100%);
   }
 
   .dark {
-    --background: 220 15% 12%;
-    --foreground: 0 0% 98%;
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
 
-    --card: 220 15% 15%;
-    --card-foreground: 0 0% 98%;
+    --card: 222 47% 14%;
+    --card-foreground: var(--foreground);
 
-    --popover: 220 15% 15%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 222 47% 14%;
+    --popover-foreground: var(--foreground);
 
-    --primary: 218 89% 45%;
+    --primary: 243 75% 58%;
     --primary-foreground: 0 0% 100%;
-
-    --secondary: 220 15% 20%;
-    --secondary-foreground: 0 0% 98%;
-
-    --muted: 220 15% 20%;
-    --muted-foreground: 220 10% 65%;
-
-    --accent: 218 89% 45%;
+    --accent: 188 72% 42%;
     --accent-foreground: 0 0% 100%;
+    --secondary: 217 33% 18%;
+    --secondary-foreground: var(--foreground);
+    --muted: 217 33% 20%;
+    --muted-foreground: 215 20% 65%;
 
-    --destructive: 0 62% 50%;
+    --info: 200 90% 52%;
+    --info-foreground: 0 0% 100%;
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 40 95% 55%;
+    --warning-foreground: 0 0% 15%;
+    --destructive: 0 70% 45%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 15% 25%;
-    --input: 220 15% 25%;
-    --ring: 218 89% 45%;
+    --border: 217 30% 28%;
+    --input: 217 30% 32%;
+    --ring: var(--primary);
 
-    --sidebar-background: 220 15% 15%;
-    --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 218 89% 45%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 15% 20%;
-    --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 220 15% 25%;
-    --sidebar-ring: 218 89% 45%;
+    --shadow-color: 222 47% 8%;
+
+    --gradient-brand: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
+    --gradient-soft: linear-gradient(135deg, hsl(var(--primary)/0.15) 0%, hsl(var(--accent)/0.15) 100%);
+    --gradient-focus: linear-gradient(90deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 50%, hsl(var(--primary)) 100%);
   }
 }
 

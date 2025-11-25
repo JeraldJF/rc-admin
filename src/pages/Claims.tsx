@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
-import { Plus, ArrowUpDown, ArrowUp, ArrowDown, Trash2, Loader2, Download } from "lucide-react";
+import { Plus, ArrowUpDown, ArrowUp, ArrowDown, Trash2, Loader2, Download, ClipboardList } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Claim } from "@/data/claimsData";
 import { searchStudentByEmail, getStudentById, downloadStudentCertificate, requestClaim } from "@/lib/api";
 import {
@@ -13,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { StatusBadge } from "@/components/ui/status-badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,6 +37,7 @@ type SortOrder = "asc" | "desc" | null;
 
 const Claims = () => {
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showRequestDialog, setShowRequestDialog] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -90,8 +93,8 @@ const Claims = () => {
     } catch (error) {
       console.error("Error fetching claims:", error);
       toast({
-        title: "❌ Failed to load claims",
-        description: error instanceof Error ? error.message : "Could not fetch claims data",
+        title: t("toast.failed_load_claims"),
+        description: error instanceof Error ? error.message : t("toast.could_not_fetch_claims"),
         variant: "destructive",
       });
       setClaims([]);
@@ -145,8 +148,8 @@ const Claims = () => {
     
     if (existingClaim) {
       toast({
-        title: "❌ Cannot submit request",
-        description: `You already have a ${existingClaim.status} claim for this institute. Please wait for it to be processed or rejected.`,
+        title: t("toast.cannot_submit_request"),
+        description: `${t("toast.existing_claim_message")} ${existingClaim.status} ${t("toast.wait_for_processing")}`,
         variant: "destructive",
       });
       return;
@@ -189,8 +192,8 @@ const Claims = () => {
       setIsLoading(false);
       setShowRequestDialog(false);
       toast({
-        title: "❌ Failed to request claim",
-        description: error instanceof Error ? error.message : "Could not submit claim request",
+        title: t("toast.failed_request_claim"),
+        description: error instanceof Error ? error.message : t("toast.could_not_submit_request"),
         variant: "destructive",
       });
     }
@@ -204,8 +207,8 @@ const Claims = () => {
       
       setClaims(prev => prev.filter(claim => claim.id !== deleteId));
       toast({
-        title: "🗑️ Request for claim successfully deleted",
-        description: "The claim has been removed from your records.",
+        title: t("toast.claim_deleted"),
+        description: t("toast.claim_removed"),
         variant: "success",
       });
       setDeleteId(null);
@@ -245,14 +248,14 @@ const Claims = () => {
       window.URL.revokeObjectURL(url);
       
       toast({
-        title: "✅ Certificate downloaded",
-        description: "Your certificate has been downloaded successfully.",
+        title: t("toast.certificate_downloaded"),
+        description: t("toast.certificate_download_success"),
         variant: "success",
       });
     } catch (error) {
       toast({
-        title: "❌ Download failed",
-        description: error instanceof Error ? error.message : "Could not download certificate",
+        title: t("toast.download_failed"),
+        description: error instanceof Error ? error.message : t("toast.could_not_download"),
         variant: "destructive",
       });
     } finally {
@@ -264,20 +267,27 @@ const Claims = () => {
     <DashboardLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-foreground">Claim Requests</h1>
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-card border border-blue-200 flex items-center justify-center shadow-sm">
+              <ClipboardList className="h-6 w-6 text-blue-600" />
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">
+              {t("title.claim_requests")}
+            </h1>
+          </div>
           <Button onClick={handleRequestClaim} className="gap-2">
             <Plus className="h-4 w-4" />
-            Request For Claim
+            {t("btn.request_claim")}
           </Button>
         </div>
 
         <div className="rounded-xl border border-border bg-card overflow-hidden shadow-lg">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/50 hover:bg-muted/50">
-                <TableHead className="font-bold text-foreground">Claim ID</TableHead>
-                <TableHead className="font-bold text-foreground">Status</TableHead>
-                <TableHead className="font-bold text-foreground">Actions</TableHead>
+          <Table className="relative">
+            <TableHeader className="sticky top-0 z-10">
+              <TableRow className="bg-secondary/95 backdrop-blur-sm border-b border-border/60">
+                <TableHead className="uppercase text-[11px] tracking-wider font-semibold text-muted-foreground">{t("table.claim_id")}</TableHead>
+                <TableHead className="uppercase text-[11px] tracking-wider font-semibold text-muted-foreground">{t("table.status")}</TableHead>
+                <TableHead className="uppercase text-[11px] tracking-wider font-semibold text-muted-foreground">{t("table.actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -285,18 +295,18 @@ const Claims = () => {
                 <TableRow>
                   <TableCell colSpan={3} className="text-center py-8">
                     <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
-                    <p className="text-muted-foreground mt-2">Loading claims...</p>
+                    <p className="text-muted-foreground mt-2">{t("loading.claims")}</p>
                   </TableCell>
                 </TableRow>
               ) : sortedClaims.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
-                    No claims found. Click "Request For Claim" to submit a new request.
+                    {t("no_data.no_claims_found")}
                   </TableCell>
                 </TableRow>
               ) : (
-                sortedClaims.map((claim) => (
-                  <TableRow key={claim.id} className="hover:bg-muted/30 transition-colors">
+                sortedClaims.map((claim, i) => (
+                  <TableRow key={claim.id} className={`${i % 2 === 0 ? 'bg-background' : 'bg-muted/40'} hover:bg-muted/60 transition-colors`}>
                     <TableCell className="font-mono text-sm text-foreground">
                       <TooltipProvider>
                         <Tooltip>
@@ -310,15 +320,7 @@ const Claims = () => {
                       </TooltipProvider>
                     </TableCell>
                     <TableCell>
-                      <span
-                        className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
-                          claim.status === "approved"
-                            ? "bg-green-100 text-green-800"
-                            : "bg-yellow-100 text-yellow-800"
-                        }`}
-                      >
-                        {claim.status.charAt(0).toUpperCase() + claim.status.slice(1)}
-                      </span>
+                      <StatusBadge status={claim.status} pulse={claim.status === 'pending'} />
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
@@ -328,8 +330,8 @@ const Claims = () => {
                             size="icon"
                             onClick={() => handleDownloadCertificate(claim)}
                             disabled={downloadingId === claim.id}
-                            className="hover:bg-green-100 hover:text-green-700"
-                            title="Download Certificate"
+                            className="bg-secondary hover:bg-muted text-foreground hover:text-foreground transition-colors"
+                            title={t("tooltip.download")}
                           >
                             {downloadingId === claim.id ? (
                               <Loader2 className="h-4 w-4 animate-spin" />
@@ -344,7 +346,7 @@ const Claims = () => {
                             size="icon"
                             onClick={() => setDeleteId(claim.id)}
                             disabled
-                            className="hover:bg-destructive/10 hover:text-destructive"
+                            className="bg-secondary hover:bg-muted text-muted-foreground cursor-not-allowed transition-colors"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -363,21 +365,21 @@ const Claims = () => {
       <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Request Claim Confirmation</AlertDialogTitle>
+            <AlertDialogTitle>{t("confirm.request_claim")}</AlertDialogTitle>
             <AlertDialogDescription className="space-y-3">
-              <p>Are you sure you want to submit a claim request for:</p>
+              <p>{t("confirm.request_claim_desc")}</p>
               <div className="bg-muted p-3 rounded-lg">
                 <p className="font-semibold text-foreground">Royal University of Phnom Penh</p>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("btn.cancel")}</AlertDialogCancel>
             <AlertDialogAction 
               onClick={handleConfirmRequest}
               className="bg-primary hover:bg-primary/90"
             >
-              Confirm Request
+              {t("btn.confirm_request")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -388,13 +390,13 @@ const Claims = () => {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {isLoading ? "Requesting Claim" : "Success"}
+              {isLoading ? t("confirm.requesting") : t("confirm.success")}
             </AlertDialogTitle>
             <AlertDialogDescription className="flex flex-col items-center justify-center py-4">
               {isLoading ? (
                 <>
                   <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-                  <p className="text-base">Sending request for claim...</p>
+                  <p className="text-base">{t("confirm.sending_request")}</p>
                 </>
               ) : showSuccess ? (
                 <>
@@ -414,7 +416,7 @@ const Claims = () => {
                     </svg>
                   </div>
                   <p className="text-base font-semibold text-green-700">
-                    Request for claim submitted successfully!
+                    {t("confirm.request_submitted_successfully")}
                   </p>
                 </>
               ) : null}
@@ -427,13 +429,13 @@ const Claims = () => {
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Claim Request?</AlertDialogTitle>
+            <AlertDialogTitle>{t("confirm.delete_claim_request")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this claim request? This action cannot be undone.
+              {t("confirm.delete_claim_warning")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeleting}>{t("btn.cancel")}</AlertDialogCancel>
             <AlertDialogAction 
               onClick={handleDelete} 
               disabled={isDeleting}
@@ -442,10 +444,10 @@ const Claims = () => {
               {isDeleting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Deleting...
+                  {t("action.deleting")}
                 </>
               ) : (
-                "Delete"
+                t("btn.delete")
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +20,7 @@ const FormField = ({ children }: { children: React.ReactNode}) => (
 );
 
 const EditEntity = () => {
+  const { t } = useLanguage();
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -76,8 +78,8 @@ const EditEntity = () => {
         }
       } catch (error) {
         toast({
-          title: "❌ Failed to load data",
-          description: error instanceof Error ? error.message : "Could not fetch entity data",
+          title: t("toast.failed_load_data"),
+          description: error instanceof Error ? error.message : t("toast.could_not_fetch_data"),
           variant: "destructive",
         });
       } finally {
@@ -89,13 +91,13 @@ const EditEntity = () => {
   }, [id]);
 
   const validateField = (fieldName: string, value: string) => {
-    if (fieldName === "dob" && !value) return "Date of Birth is required";
-    if (fieldName === "gender" && !value) return "Gender is required";
-    if (fieldName === "mobile" && !value) return "Mobile number is required";
-    if (fieldName === "email" && !value) return "Email is required";
-    if (fieldName === "instituteName" && !value) return "Institute Name is required";
-    if (fieldName === "name" && !value && userRole === "admin") return "Name is required";
-    if (fieldName === "fullName" && !value && userRole === "teacher") return "Full Name is required";
+    if (fieldName === "dob" && !value) return t("validation.dob_required");
+    if (fieldName === "gender" && !value) return t("validation.gender_required");
+    if (fieldName === "mobile" && !value) return t("validation.mobile_required");
+    if (fieldName === "email" && !value) return t("validation.email_required");
+    if (fieldName === "instituteName" && !value) return t("validation.institute_required");
+    if (fieldName === "name" && !value && userRole === "admin") return t("validation.name_required");
+    if (fieldName === "fullName" && !value && userRole === "teacher") return t("validation.full_name_required");
     return "";
   };
 
@@ -137,8 +139,8 @@ const EditEntity = () => {
             gender: formData.gender,
           });
           toast({
-            title: "✅ Teacher updated successfully",
-            description: "The teacher record has been updated.",
+            title: t("toast.teacher_updated"),
+            description: t("toast.teacher_record_updated"),
             variant: "success",
           });
         } else {
@@ -152,16 +154,16 @@ const EditEntity = () => {
             instituteName: formData.instituteName,
           });
           toast({
-            title: "✅ Student updated successfully",
-            description: "The student record has been updated.",
+            title: t("toast.student_updated"),
+            description: t("toast.student_record_updated"),
             variant: "success",
           });
         }
         navigate("/registry");
       } catch (error) {
         toast({
-          title: "❌ Failed to update record",
-          description: error instanceof Error ? error.message : "Could not update the record",
+          title: t("toast.failed_update"),
+          description: error instanceof Error ? error.message : t("toast.could_not_update"),
           variant: "destructive",
         });
       } finally {
@@ -184,7 +186,7 @@ const EditEntity = () => {
     );
   }
 
-  const pageTitle = userRole === "admin" ? "Edit Teacher Details" : "Edit Student Details";
+  const pageTitle = userRole === "admin" ? t("heading.edit_teacher") : t("heading.edit_student");
   const isTeacher = userRole === "admin";
 
   return (
@@ -193,7 +195,7 @@ const EditEntity = () => {
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={handleCancel} className="gap-2 hover:bg-accent transition-colors rounded-lg">
             <ArrowLeft className="h-4 w-4" />
-            <span className="font-semibold">Back</span>
+            <span className="font-semibold">{t("btn.back")}</span>
           </Button>
           <div className="h-6 w-px bg-border"></div>
           <h1 className="text-2xl font-bold text-foreground">{pageTitle}</h1>
@@ -205,7 +207,7 @@ const EditEntity = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField>
                   <Label htmlFor={isTeacher ? "name" : "fullName"} className="text-sm font-semibold text-foreground">
-                    {isTeacher ? "Name" : "Full Name"} <span className="text-destructive">*</span>
+                    {isTeacher ? t("form.name") : t("form.full_name")} <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id={isTeacher ? "name" : "fullName"}
@@ -217,7 +219,7 @@ const EditEntity = () => {
                       setErrors(prev => ({ ...prev, [fieldName]: error || undefined }));
                     }}
                     className={`rounded-lg h-11 ${(isTeacher ? errors.name : errors.fullName) ? "border-destructive ring-2 ring-destructive/20" : ""}`}
-                    placeholder={isTeacher ? "Enter name" : "Enter full name"}
+                    placeholder={isTeacher ? t("form.enter_name") : t("form.enter_full_name")}
                   />
                   {(isTeacher ? errors.name : errors.fullName) && (
                     <p className="text-sm font-medium text-destructive">{isTeacher ? errors.name : errors.fullName}</p>
@@ -225,7 +227,7 @@ const EditEntity = () => {
                 </FormField>
                 <FormField>
                   <Label htmlFor="gender" className="text-sm font-semibold text-foreground">
-                    Gender <span className="text-destructive">*</span>
+                    {t("form.gender")} <span className="text-destructive">*</span>
                   </Label>
                   <Select
                     value={formData.gender}
@@ -239,9 +241,9 @@ const EditEntity = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-popover">
-                      <SelectItem value="Male">Male</SelectItem>
-                      <SelectItem value="Female">Female</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
+                      <SelectItem value="Male">{t("form.male")}</SelectItem>
+                      <SelectItem value="Female">{t("form.female")}</SelectItem>
+                      <SelectItem value="Other">{t("form.other")}</SelectItem>
                     </SelectContent>
                   </Select>
                   {errors.gender && <p className="text-sm font-medium text-destructive">{errors.gender}</p>}
@@ -251,7 +253,7 @@ const EditEntity = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField>
                   <Label className="text-sm font-semibold text-foreground">
-                    Date of Birth <span className="text-destructive">*</span>
+                    {t("form.date_of_birth")} <span className="text-destructive">*</span>
                   </Label>
                   <Popover>
                     <PopoverTrigger asChild>
@@ -264,7 +266,7 @@ const EditEntity = () => {
                         )}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {formData.dob ? format(new Date(formData.dob), "PPP") : "Pick a date"}
+                        {formData.dob ? format(new Date(formData.dob), "PPP") : t("form.pick_date")}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0 bg-popover" align="start">
@@ -285,7 +287,7 @@ const EditEntity = () => {
                 </FormField>
                 <FormField>
                   <Label htmlFor="instituteName" className="text-sm font-semibold text-foreground">
-                    Institute Name <span className="text-destructive">*</span>
+                    {t("form.institute_name")} <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="instituteName"
@@ -296,7 +298,7 @@ const EditEntity = () => {
                       setErrors(prev => ({ ...prev, instituteName: error || undefined }));
                     }}
                     className={`rounded-lg h-11 ${errors.instituteName ? "border-destructive ring-2 ring-destructive/20" : ""}`}
-                    placeholder="Enter institute name"
+                    placeholder={t("form.enter_institute")}
                   />
                   {errors.instituteName && <p className="text-sm font-medium text-destructive">{errors.instituteName}</p>}
                 </FormField>
@@ -305,7 +307,7 @@ const EditEntity = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField>
                   <Label htmlFor="mobile" className="text-sm font-semibold text-foreground">
-                    Mobile number <span className="text-destructive">*</span>
+                    {t("form.mobile_number")} <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="mobile"
@@ -323,7 +325,7 @@ const EditEntity = () => {
                 </FormField>
                 <FormField>
                   <Label htmlFor="email" className="text-sm font-semibold text-foreground">
-                    Email ID <span className="text-destructive">*</span>
+                    {t("form.email")} <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="email"
@@ -335,7 +337,7 @@ const EditEntity = () => {
                       setErrors(prev => ({ ...prev, email: error || undefined }));
                     }}
                     className={`rounded-lg h-11 ${errors.email ? "border-destructive ring-2 ring-destructive/20" : ""}`}
-                    placeholder="email@example.com"
+                    placeholder={t("form.enter_email")}
                   />
                   {errors.email && <p className="text-sm font-medium text-destructive">{errors.email}</p>}
                 </FormField>
@@ -345,18 +347,18 @@ const EditEntity = () => {
 
           <div className="flex justify-end gap-4">
             <Button type="button" variant="outline" onClick={handleCancel} className="rounded-lg px-6" disabled={isSaving}>
-              Cancel
+              {t("btn.cancel")}
             </Button>
             <Button type="submit" className="rounded-lg px-8 bg-primary hover:bg-primary/90 gap-2" disabled={isSaving}>
               {isSaving ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Saving...
+                  {t("action.saving")}
                 </>
               ) : (
                 <>
                   <Save className="h-4 w-4" />
-                  Save Changes
+                  {t("btn.save_changes")}
                 </>
               )}
             </Button>

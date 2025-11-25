@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Eye, Pencil, Trash2, Plus, Search, SearchX, Loader2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Eye, Pencil, Trash2, Plus, Search, SearchX, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Database } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Pagination,
@@ -43,6 +44,7 @@ interface EntityData {
 }
 
 const Registry = () => {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
@@ -88,8 +90,8 @@ const Registry = () => {
       setEntities(teacherData);
     } catch (error) {
       toast({
-        title: "❌ Failed to load teachers",
-        description: error instanceof Error ? error.message : "Could not fetch teachers list",
+        title: t("toast.failed_load_teachers"),
+        description: error instanceof Error ? error.message : t("toast.could_not_fetch_teachers"),
         variant: "destructive",
       });
     } finally {
@@ -116,8 +118,8 @@ const Registry = () => {
       setEntities(studentData);
     } catch (error) {
       toast({
-        title: "❌ Failed to load students",
-        description: error instanceof Error ? error.message : "Could not fetch students list",
+        title: t("toast.failed_load_students"),
+        description: error instanceof Error ? error.message : t("toast.could_not_fetch_students"),
         variant: "destructive",
       });
     } finally {
@@ -181,8 +183,8 @@ const Registry = () => {
       
       setEntities(entities.filter((entity) => entity.id !== deleteId));
       toast({
-        title: "🗑️ Entity deleted",
-        description: "The record has been successfully removed.",
+        title: t("toast.entity_deleted"),
+        description: t("toast.record_removed"),
         variant: "success",
       });
       setDeleteId(null);
@@ -191,19 +193,26 @@ const Registry = () => {
     }
   };
 
-  const addButtonText = userRole === "admin" ? "Add Teacher" : "Add Student";
-  const pageTitle = userRole === "admin" ? "Teacher Management" : "Student Management";
+  const addButtonText = userRole === "admin" ? t("btn.add_teacher") : t("btn.add_student");
+  const pageTitle = userRole === "admin" ? t("title.teacher_management") : t("title.student_management");
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <h1 className="text-3xl font-bold text-foreground tracking-tight">{pageTitle}</h1>
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-lg bg-card border border-purple-200 flex items-center justify-center shadow-sm">
+            <Database className="h-6 w-6 text-purple-600" />
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+            {pageTitle}
+          </h1>
+        </div>
         
         <div className="flex items-center gap-4 w-full">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder={userRole === "admin" ? "Search teachers..." : "Search students..."}
+              placeholder={userRole === "admin" ? t("placeholder.search_teachers") : t("placeholder.search_students")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 bg-card font-medium rounded-lg h-11 border-input"
@@ -221,11 +230,11 @@ const Registry = () => {
               <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-4 ring-4 ring-primary/5">
                 <SearchX className="h-8 w-8 text-primary/60" />
               </div>
-              <h3 className="text-lg font-bold text-foreground mb-2">No Records Found</h3>
+              <h3 className="text-lg font-bold text-foreground mb-2">{t("no_data.no_records")}</h3>
               <p className="text-sm text-muted-foreground mb-4 text-center max-w-sm">
                 {searchQuery 
-                  ? "No entities match your search criteria"
-                  : "No entities available in the system"}
+                  ? t("no_data.no_match_criteria")
+                  : t("no_data.no_entities_available")}
               </p>
               {searchQuery && (
                 <Button 
@@ -235,45 +244,45 @@ const Registry = () => {
                   className="rounded-lg shadow-md hover:shadow-lg transition-all"
                 >
                   <SearchX className="mr-2 h-4 w-4" />
-                  Clear Filters
+                  {t("action.clear_filters")}
                 </Button>
               )}
             </div>
           </div>
         ) : (
           <div className="rounded-xl border border-border bg-card overflow-hidden shadow-lg">
-            <Table>
-              <TableHeader>
-              <TableRow className="bg-muted/50 hover:bg-muted/50">
-                <TableHead className="font-bold text-foreground">Name</TableHead>
+            <Table className="relative">
+              <TableHeader className="sticky top-0 z-10">
+              <TableRow className="bg-secondary/95 backdrop-blur-sm border-b border-border/60">
+                <TableHead className="uppercase text-[11px] tracking-wider font-semibold text-muted-foreground">{t("table.name")}</TableHead>
                 {/* {userRole === "admin" && (
-                  <TableHead className="font-bold text-foreground">Institute Name</TableHead>
+                  <TableHead className="font-bold text-foreground">{t("form.institute_name")}</TableHead>
                 )} */}
-                <TableHead className="font-bold text-foreground">
+                <TableHead className="uppercase text-[11px] tracking-wider font-semibold text-muted-foreground">
                   <button
                     onClick={() => toggleSort("created")}
-                    className="flex items-center gap-2 hover:text-primary transition-colors font-bold"
+                    className="flex items-center gap-2 hover:text-primary transition-colors font-medium"
                   >
-                    Created On
+                    {t("table.created_on")}
                     {getSortIcon("created")}
                   </button>
                 </TableHead>
-                <TableHead className="font-bold text-foreground">
+                <TableHead className="uppercase text-[11px] tracking-wider font-semibold text-muted-foreground">
                   <button
                     onClick={() => toggleSort("updated")}
-                    className="flex items-center gap-2 hover:text-primary transition-colors font-bold"
+                    className="flex items-center gap-2 hover:text-primary transition-colors font-medium"
                   >
-                    Updated On
+                    {t("table.updated_on")}
                     {getSortIcon("updated")}
                   </button>
                 </TableHead>
-                <TableHead className="font-bold text-foreground">Actions</TableHead>
+                <TableHead className="uppercase text-[11px] tracking-wider font-semibold text-muted-foreground">{t("table.actions")}</TableHead>
               </TableRow>
               </TableHeader>
               <TableBody>
-                {paginatedEntities.map((entity) => (
-                <TableRow key={entity.id} className="hover:bg-muted/30 transition-colors">
-                  <TableCell className="font-semibold text-foreground">
+                {paginatedEntities.map((entity, i) => (
+                <TableRow key={entity.id} className={cn("transition-colors", i % 2 === 0 ? "bg-background" : "bg-muted/40", "hover:bg-muted/60")}>                  
+                  <TableCell className="font-medium text-foreground">
                     {entity.name}
                   </TableCell>
                   {/* {userRole === "admin" && (
@@ -316,11 +325,12 @@ const Registry = () => {
                               variant="ghost"
                               size="icon"
                               onClick={() => navigate(`/entity/${entity.id}`)}
+                              className="bg-secondary hover:bg-muted text-foreground hover:text-foreground transition-colors"
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent>View</TooltipContent>
+                          <TooltipContent>{t("action.view")}</TooltipContent>
                         </Tooltip>
                         
                         <Tooltip>
@@ -329,11 +339,12 @@ const Registry = () => {
                               variant="ghost"
                               size="icon"
                               onClick={() => navigate(`/entity/${entity.id}/edit`)}
+                              className="bg-secondary hover:bg-muted text-foreground hover:text-foreground transition-colors"
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent>Edit</TooltipContent>
+                          <TooltipContent>{t("action.edit")}</TooltipContent>
                         </Tooltip>
                         
                         {/* Delete button disabled for now */}
@@ -347,7 +358,7 @@ const Registry = () => {
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent>Delete</TooltipContent>
+                          <TooltipContent>{t("action.delete")}</TooltipContent>
                         </Tooltip> */}
                       </div>
                     </TooltipProvider>
@@ -359,7 +370,7 @@ const Registry = () => {
           </div>
         )}
         
-        {filteredEntities.length > 0 && totalPages > 1 && (
+                {filteredEntities.length > 0 && totalPages > 1 && (
           <div className="flex justify-center mt-8">
             <Pagination>
               <PaginationContent className="gap-2">
@@ -408,21 +419,21 @@ const Registry = () => {
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogTitle>{t("confirm.are_you_sure")}</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the record.
+              {t("confirm.delete_warning")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeleting}>{t("btn.cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
               {isDeleting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Deleting...
+                  {t("action.deleting")}
                 </>
               ) : (
-                "Delete"
+                t("action.delete")
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

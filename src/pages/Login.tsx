@@ -111,20 +111,20 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md shadow-xl">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-secondary via-background to-muted">
+      <Card className="w-full max-w-md shadow-xl border border-border/70 bg-card/95 backdrop-blur-sm">
         <CardContent className="pt-8 pb-8">
           <div className="flex flex-col items-center mb-8">
-            <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
-              <Fingerprint className="h-12 w-12 text-primary" />
+            <div className="w-20 h-20 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center mb-5 shadow-lg ring-4 ring-primary/10">
+              <Fingerprint className="h-10 w-10 text-white" />
             </div>
-            <h1 className="text-3xl font-bold text-foreground">RC Management</h1>
-            <p className="text-muted-foreground mt-2">Sign in to your account</p>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground relative after:absolute after:left-1/2 after:-translate-x-1/2 after:-bottom-1 after:h-1 after:w-28 after:bg-gradient-to-r after:from-primary after:to-accent after:rounded-full">RC Manager</h1>
+            <p className="text-sm text-muted-foreground mt-2 font-medium">Secure Certificate Management</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-foreground font-semibold">Username</Label>
+              <Label htmlFor="email" className="text-foreground font-semibold text-sm">Username</Label>
               <Input
                 id="email"
                 type="text"
@@ -135,15 +135,17 @@ const Login = () => {
                   setErrors(prev => ({ ...prev, email: error || undefined }));
                 }}
                 placeholder="Enter your username"
-                className={errors.email ? "border-destructive" : ""}
+                className={`h-11 rounded-lg ${errors.email ? 'border-destructive ring-1 ring-destructive/40' : 'focus-visible:ring-2 focus-visible:ring-primary/40'} transition`}
               />
               {errors.email && (
-                <p className="text-sm text-destructive">{errors.email}</p>
+                <p className="text-xs text-destructive font-medium">
+                  {errors.email}
+                </p>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-foreground font-semibold">Password</Label>
+              <Label htmlFor="password" className="text-foreground font-semibold text-sm">Password</Label>
               <div className="relative">
                 <Input
                   id="password"
@@ -155,12 +157,12 @@ const Login = () => {
                     setErrors(prev => ({ ...prev, password: error || undefined }));
                   }}
                   placeholder="••••••••"
-                  className={errors.password ? "border-destructive pr-10" : "pr-10"}
+                  className={`h-11 rounded-lg pr-10 ${errors.password ? 'border-destructive ring-1 ring-destructive/40' : 'focus-visible:ring-2 focus-visible:ring-primary/40'} transition`}
                 />
                 <button
                   type="button"
                   onClick={handlePasswordVisibilityToggle}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
                 >
                   {showPassword ? (
                     <Eye className="h-4 w-4" />
@@ -170,53 +172,36 @@ const Login = () => {
                 </button>
               </div>
               {errors.password && (
-                <p className="text-sm text-destructive">{errors.password}</p>
+                <p className="text-xs text-destructive font-medium">
+                  {errors.password}
+                </p>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label className="text-foreground font-semibold">Sign in as</Label>
-              <div className="flex gap-0 bg-muted p-1 rounded-lg">
-                <button
-                  type="button"
-                  onClick={() => setRole("admin")}
-                  className={`flex-1 py-2.5 px-4 rounded-md font-medium transition-all ${
-                    role === "admin"
-                      ? "bg-blue-600 text-white shadow-md"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  Admin
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRole("teacher")}
-                  className={`flex-1 py-2.5 px-4 rounded-md font-medium transition-all ${
-                    role === "teacher"
-                      ? "bg-blue-600 text-white shadow-md"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  Teacher
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRole("student")}
-                  className={`flex-1 py-2.5 px-4 rounded-md font-medium transition-all ${
-                    role === "student"
-                      ? "bg-blue-600 text-white shadow-md"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  Student
-                </button>
+              <Label className="text-foreground font-semibold text-sm">Sign in as</Label>
+              <div className="flex gap-2 bg-secondary/80 p-1.5 rounded-lg border border-border/70">
+                {['admin','teacher','student'].map(r => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setRole(r as any)}
+                    className={`flex-1 py-2.5 px-3 rounded-md text-sm font-semibold transition ${
+                      role === r
+                        ? 'bg-gradient-to-r from-primary to-accent text-white shadow-sm'
+                        : 'text-foreground/70 hover:text-foreground hover:bg-muted'
+                    }`}
+                  >
+                    {r.charAt(0).toUpperCase() + r.slice(1)}
+                  </button>
+                ))}
               </div>
             </div>
 
-            <Button type="submit" className="w-full mt-6 h-12 text-base font-medium bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/30" disabled={isLoading}>
+            <Button type="submit" className="w-full mt-6 h-11 text-sm font-bold bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-white shadow-md" disabled={isLoading}>
               {isLoading ? (
                 <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Signing in...
                 </>
               ) : (

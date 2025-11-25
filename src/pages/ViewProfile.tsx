@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +28,7 @@ const FormField = ({ children }: { children: React.ReactNode }) => (
 );
 
 const ViewProfile = () => {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [username, setUsername] = useState("admin");
@@ -162,10 +164,10 @@ const ViewProfile = () => {
 
   // Get role display name
   const getRoleDisplay = (role: string) => {
-    if (role === "admin") return "Administrator";
-    if (role === "teacher") return "Teacher";
-    if (role === "student") return "Student";
-    return "User";
+    if (role === "admin") return t("login.admin");
+    if (role === "teacher") return t("login.teacher");
+    if (role === "student") return t("login.student");
+    return t("login.admin");
   };
 
   const validateForm = () => {
@@ -239,7 +241,7 @@ const ViewProfile = () => {
             <CardContent className="pt-8 px-8 pb-8">
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <span className="ml-3 text-muted-foreground">Loading profile...</span>
+                <span className="ml-3 text-muted-foreground">{t("action.loading")}</span>
               </div>
             </CardContent>
           </Card>
@@ -250,21 +252,21 @@ const ViewProfile = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField>
                   <Label htmlFor="fullName" className="text-sm font-semibold text-foreground">
-                    Full Name {!isReadOnly && <span className="text-destructive">*</span>}
+                    {t("form.full_name")} {!isReadOnly && <span className="text-destructive">*</span>}
                   </Label>
                   <Input
                     id="fullName"
                     value={formData.fullName}
                     onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                     className={`rounded-lg h-11 font-medium ${isReadOnly ? "bg-muted/50 text-foreground cursor-not-allowed" : ""} ${errors.fullName ? "border-destructive ring-2 ring-destructive/20" : ""}`}
-                    placeholder="Enter full name"
+                    placeholder={t("form.enter_full_name")}
                     disabled={isReadOnly}
                   />
                   {errors.fullName && <p className="text-sm font-medium text-destructive">{errors.fullName}</p>}
                 </FormField>
                 <FormField>
                   <Label htmlFor="gender" className="text-sm font-semibold text-foreground">
-                    Gender {!isReadOnly && <span className="text-destructive">*</span>}
+                    {t("form.gender")} {!isReadOnly && <span className="text-destructive">*</span>}
                   </Label>
                   <Select
                     value={formData.gender}
@@ -275,9 +277,9 @@ const ViewProfile = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-popover">
-                      <SelectItem value="Male">Male</SelectItem>
-                      <SelectItem value="Female">Female</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
+                      <SelectItem value="Male">{t("form.male")}</SelectItem>
+                      <SelectItem value="Female">{t("form.female")}</SelectItem>
+                      <SelectItem value="Other">{t("form.other")}</SelectItem>
                     </SelectContent>
                   </Select>
                   {errors.gender && <p className="text-sm font-medium text-destructive">{errors.gender}</p>}
@@ -287,7 +289,7 @@ const ViewProfile = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField>
                   <Label className="text-sm font-semibold text-foreground">
-                    Date of Birth {!isReadOnly && <span className="text-destructive">*</span>}
+                    {t("form.date_of_birth")} {!isReadOnly && <span className="text-destructive">*</span>}
                   </Label>
                   <Popover>
                     <PopoverTrigger asChild>
@@ -302,7 +304,7 @@ const ViewProfile = () => {
                         )}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {formData.dob ? format(new Date(formData.dob), "PPP") : "Pick a date"}
+                        {formData.dob ? format(new Date(formData.dob), "PPP") : t("form.pick_date")}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0 bg-popover" align="start">
@@ -318,7 +320,7 @@ const ViewProfile = () => {
                 </FormField>
                 <FormField>
                   <Label htmlFor="mobile" className="text-sm font-semibold text-foreground">
-                    Mobile number {!isReadOnly && <span className="text-destructive">*</span>}
+                    {t("form.mobile")} {!isReadOnly && <span className="text-destructive">*</span>}
                   </Label>
                   <Input
                     id="mobile"
@@ -326,7 +328,7 @@ const ViewProfile = () => {
                     value={formData.mobile}
                     onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
                     className={`rounded-lg h-11 font-medium ${isReadOnly ? "bg-muted/50 text-foreground cursor-not-allowed" : ""} ${errors.mobile ? "border-destructive ring-2 ring-destructive/20" : ""}`}
-                    placeholder="+855 12 345 678"
+                    placeholder={t("form.enter_mobile")}
                     disabled={isReadOnly}
                   />
                   {errors.mobile && <p className="text-sm font-medium text-destructive">{errors.mobile}</p>}
@@ -338,21 +340,21 @@ const ViewProfile = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FormField>
                       <Label htmlFor="instituteName" className="text-sm font-semibold text-foreground">
-                        Institute Name <span className="text-destructive">*</span>
+                        {t("form.institute_name")} <span className="text-destructive">*</span>
                       </Label>
                       <Input
                         id="instituteName"
                         value={formData.instituteName}
                         onChange={(e) => setFormData({ ...formData, instituteName: e.target.value })}
                         className={`rounded-lg h-11 font-medium ${isStudent || isReadOnly ? "bg-muted/50 text-foreground cursor-not-allowed" : ""} ${errors.instituteName ? "border-destructive ring-2 ring-destructive/20" : ""}`}
-                        placeholder="Enter institute name"
+                        placeholder={t("form.enter_institute")}
                         disabled={isStudent || isReadOnly}
                       />
                       {errors.instituteName && <p className="text-sm font-medium text-destructive">{errors.instituteName}</p>}
                     </FormField>
                     <FormField>
                       <Label htmlFor="email" className="text-sm font-semibold text-foreground">
-                        Email ID {!isReadOnly && <span className="text-destructive">*</span>}
+                        {t("form.email")} {!isReadOnly && <span className="text-destructive">*</span>}
                       </Label>
                       <Input
                         id="email"
@@ -360,7 +362,7 @@ const ViewProfile = () => {
                         value={formData.email}
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                         className={`rounded-lg h-11 font-medium ${isReadOnly ? "bg-muted/50 text-foreground cursor-not-allowed" : ""} ${errors.email ? "border-destructive ring-2 ring-destructive/20" : ""}`}
-                        placeholder="email@example.com"
+                        placeholder={t("form.enter_email")}
                         disabled={isReadOnly}
                       />
                       {errors.email && <p className="text-sm font-medium text-destructive">{errors.email}</p>}
@@ -394,7 +396,7 @@ const ViewProfile = () => {
           {!isReadOnly && (
             <div className="flex justify-end gap-4">
               <Button type="button" variant="outline" onClick={handleCancel} className="rounded-lg px-6" disabled={isSaving}>
-                Cancel
+                {t("btn.cancel")}
               </Button>
               <Button type="submit" className="rounded-lg px-8 bg-primary hover:bg-primary/90 gap-2" disabled={isSaving}>
                 {isSaving ? (
@@ -405,7 +407,7 @@ const ViewProfile = () => {
                 ) : (
                   <>
                     <Save className="h-4 w-4" />
-                    Save Changes
+                    {t("btn.save_changes")}
                   </>
                 )}
               </Button>
