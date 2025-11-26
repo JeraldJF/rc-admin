@@ -96,6 +96,7 @@ const translations = {
     
     // Profile
     'profile.view_profile': 'View Profile',
+    'profile.my_profile': 'My Profile',
     'profile.username': 'Username',
     'profile.email': 'Email Address',
     'profile.role': 'Role',
@@ -121,6 +122,8 @@ const translations = {
     'form.other': 'Other',
     'form.email': 'Email ID',
     'form.mobile': 'Mobile number',
+    'form.degree': 'Degree',
+    'form.grade': 'Grade',
     'form.mobile_number': 'Mobile number',
     'form.institute_name': 'Institute Name',
     'form.pick_date': 'Pick a date',
@@ -128,9 +131,12 @@ const translations = {
     'form.enter_full_name': 'Enter full name',
     'form.enter_email': 'Enter email address',
     'form.enter_mobile': 'Enter mobile number',
-    'form.enter_institute': 'Enter institute name',
+    'form.select_institute': 'Select institute',
     'form.select_gender': 'Select gender',
     'form.select_subject': 'Select subject',
+    'form.select_degree': 'Select degree',
+    'form.enter_grade': 'Enter grade',
+
     
     // Tooltips
     'tooltip.download': 'Download Certificate',
@@ -193,6 +199,8 @@ const translations = {
     'toast.student_added': 'Student added successfully',
     'toast.student_added_desc': 'The student record has been created.',
     'toast.teacher_updated': 'Teacher updated successfully',
+    'toast.student_record_updated': 'The student record has been updated.',
+    'toast.teacher_record_updated': 'The teacher record has been updated.',
     'toast.teacher_updated_desc': 'The teacher record has been updated.',
     'toast.student_updated': 'Student updated successfully',
     'toast.student_updated_desc': 'The student record has been updated.',
@@ -350,6 +358,7 @@ const translations = {
     
     // Profile
     'profile.view_profile': 'Ver Perfil',
+    'profile.my_profile': 'Mi Perfil',
     'profile.username': 'Nombre de Usuario',
     'profile.email': 'Dirección de Correo',
     'profile.role': 'Rol',

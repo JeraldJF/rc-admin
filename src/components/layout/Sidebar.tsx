@@ -47,14 +47,15 @@ export const Sidebar = () => {
         {userRole === "student" ? (
           <>
             <NavLink
-              to="/claims"
+              to="/profile"
               className="relative flex items-center gap-3 px-3.5 py-3 rounded-lg text-foreground/75 font-medium border border-transparent hover:border-primary/30 hover:bg-primary/10 hover:text-primary transition-all duration-200 group"
             activeClassName="bg-primary/15 text-primary font-semibold border border-primary/40 shadow-sm before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-6 before:w-1.5 before:rounded-full before:bg-primary"
             >
-              <ClipboardList className="h-5 w-5 text-info/80 group-hover:text-info transition-colors" />
-              <span>{t("nav.my_claims")}</span>
+              <User className="h-5 w-5 text-info/80 group-hover:text-info transition-colors" />
+              <span>{t("profile.my_profile")}</span>
             </NavLink>
           </>
+
         ) : userRole === "teacher" ? (
           <>
             <NavLink

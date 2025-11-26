@@ -4,8 +4,9 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Eye, Pencil, Trash2, Plus, Search, SearchX, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Database } from "lucide-react";
+import { Eye, Pencil, Trash2, Plus, Search, SearchX, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Database, Shield } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
 import {
   Pagination,
   PaginationContent,
@@ -41,6 +42,8 @@ interface EntityData {
   mobile?: string;
   created: string;
   updated: string;
+  degree?: string;
+  isAttested?: boolean;
 }
 
 const Registry = () => {
@@ -76,8 +79,11 @@ const Registry = () => {
     try {
       const response = await searchAllTeachers();
       
+      // Handle response structure - could be array or object with data property
+      const teachersArray = Array.isArray(response) ? response : (response.data || []);
+      
       // Transform API response to EntityData format
-      const teacherData: EntityData[] = response.map((teacher: any) => ({
+      const teacherData: EntityData[] = teachersArray.map((teacher: any) => ({
         id: teacher.osid,
         name: teacher.name,
         email: teacher.email,
@@ -104,8 +110,11 @@ const Registry = () => {
     try {
       const response = await searchAllStudents();
       
+      // Handle response structure - could be array or object with data property
+      const studentsArray = Array.isArray(response) ? response : (response.data || []);
+      
       // Transform API response to EntityData format
-      const studentData: EntityData[] = response.map((student: any) => ({
+      const studentData: EntityData[] = studentsArray.map((student: any) => ({
         id: student.osid,
         name: student.fullName,
         email: student.email,
@@ -113,6 +122,8 @@ const Registry = () => {
         mobile: student.mobile,
         created: student.osCreatedAt,
         updated: student.osUpdatedAt,
+        degree: student.degree,
+        isAttested: student.studentInstituteAttest && student.studentInstituteAttest.length > 0,
       }));
       
       setEntities(studentData);
@@ -255,6 +266,12 @@ const Registry = () => {
               <TableHeader className="sticky top-0 z-10">
               <TableRow className="bg-secondary/95 backdrop-blur-sm border-b border-border/60">
                 <TableHead className="uppercase text-[11px] tracking-wider font-semibold text-muted-foreground">{t("table.name")}</TableHead>
+                {userRole === "teacher" && (
+                  <>
+                    <TableHead className="uppercase text-[11px] tracking-wider font-semibold text-muted-foreground">{t("form.institute_name")}</TableHead>
+                    <TableHead className="uppercase text-[11px] tracking-wider font-semibold text-muted-foreground">{t("form.degree")}</TableHead>
+                  </>
+                )}
                 {/* {userRole === "admin" && (
                   <TableHead className="font-bold text-foreground">{t("form.institute_name")}</TableHead>
                 )} */}
@@ -285,6 +302,31 @@ const Registry = () => {
                   <TableCell className="font-medium text-foreground">
                     {entity.name}
                   </TableCell>
+                  {userRole === "teacher" && (
+                    <>
+                      <TableCell className="font-medium text-muted-foreground">
+                        {entity.instituteName || "—"}
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {entity.degree ? (
+                          <div className="flex items-center gap-2">
+                            {entity.isAttested ? (
+                              <Badge variant="default" className="gap-1">
+                                <Shield className="h-3 w-3" />
+                                {entity.degree}
+                              </Badge>
+                            ) : (
+                              <span className="text-foreground">
+                                {entity.degree}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">—</span>
+                        )}
+                      </TableCell>
+                    </>
+                  )}
                   {/* {userRole === "admin" && (
                     <TableCell className="font-medium">{entity.instituteName}</TableCell>
                   )} */}

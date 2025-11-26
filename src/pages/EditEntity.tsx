@@ -7,13 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft, CalendarIcon, Save, Loader2 } from "lucide-react";
+import { ArrowLeft, CalendarIcon, Save, Loader2, Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { getTeacherById, getStudentById, updateTeacher, updateStudent } from "@/lib/api";
+import { getTeacherById, getStudentById, updateTeacher, updateStudent, attestFieldClaim } from "@/lib/api";
+import { Badge } from "@/components/ui/badge";
 
 const FormField = ({ children }: { children: React.ReactNode}) => (
   <div className="space-y-2.5">{children}</div>
@@ -28,6 +29,11 @@ const EditEntity = () => {
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [userRole, setUserRole] = useState<string>("admin");
+  const [originalAttestableData, setOriginalAttestableData] = useState<{
+    degree?: string;
+    grade?: string;
+    instituteName?: string;
+  }>({});
   const [formData, setFormData] = useState({
     gender: "Male",
     fullName: "",
@@ -37,6 +43,8 @@ const EditEntity = () => {
     instituteName: "",
     dob: "",
     subject: "", // For teachers
+    degree: "", // For students
+    grade: "", // For students
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -65,7 +73,7 @@ const EditEntity = () => {
         } else {
           // Fetch student data
           const studentData = await getStudentById(id);
-          setFormData({
+          const studentFormData = {
             gender: studentData.gender || "Male",
             fullName: studentData.fullName || "",
             name: "",
@@ -74,6 +82,15 @@ const EditEntity = () => {
             instituteName: studentData.instituteName || "",
             dob: studentData.dob || "",
             subject: "",
+            degree: studentData.degree || "",
+            grade: studentData.grade || "",
+          };
+          setFormData(studentFormData);
+          // Store original attestable data
+          setOriginalAttestableData({
+            degree: studentData.degree || "",
+            grade: studentData.grade || "",
+            instituteName: studentData.instituteName || "",
           });
         }
       } catch (error) {
@@ -152,12 +169,39 @@ const EditEntity = () => {
             mobile: formData.mobile,
             email: formData.email,
             instituteName: formData.instituteName,
+            degree: formData.degree,
+            grade: formData.grade,
           });
-          toast({
-            title: t("toast.student_updated"),
-            description: t("toast.student_record_updated"),
-            variant: "success",
-          });
+
+          // Check if attestable fields changed
+          const changedFields: string[] = [];
+          if (formData.degree !== originalAttestableData.degree) changedFields.push("degree");
+          if (formData.grade !== originalAttestableData.grade) changedFields.push("grade");
+          if (formData.instituteName !== originalAttestableData.instituteName) changedFields.push("instituteName");
+
+          if (changedFields.length > 0) {
+            // Request attestation for changed fields
+            try {
+              await attestFieldClaim(id, changedFields);
+              toast({
+                title: t("toast.student_updated_with_claim"),
+                description: "You have changed attestable data, so a claim is raised. You can download the certificate after verification.",
+                variant: "default",
+              });
+            } catch (error) {
+              toast({
+                title: t("toast.student_updated"),
+                description: t("toast.student_record_updated") + " (Attestation request failed)",
+                variant: "success",
+              });
+            }
+          } else {
+            toast({
+              title: t("toast.student_updated"),
+              description: t("toast.student_record_updated"),
+              variant: "success",
+            });
+          }
         }
         navigate("/registry");
       } catch (error) {
@@ -286,20 +330,44 @@ const EditEntity = () => {
                   {errors.dob && <p className="text-sm font-medium text-destructive">{errors.dob}</p>}
                 </FormField>
                 <FormField>
-                  <Label htmlFor="instituteName" className="text-sm font-semibold text-foreground">
+                  <Label htmlFor="instituteName" className="text-sm font-semibold text-foreground flex items-center gap-2">
                     {t("form.institute_name")} <span className="text-destructive">*</span>
+                    {!isTeacher && <Badge variant="secondary" className="text-xs gap-1"><Shield className="h-3 w-3" />Attestable</Badge>}
                   </Label>
-                  <Input
-                    id="instituteName"
-                    value={formData.instituteName}
-                    onChange={(e) => {
-                      setFormData({ ...formData, instituteName: e.target.value });
-                      const error = validateField("instituteName", e.target.value);
-                      setErrors(prev => ({ ...prev, instituteName: error || undefined }));
-                    }}
-                    className={`rounded-lg h-11 ${errors.instituteName ? "border-destructive ring-2 ring-destructive/20" : ""}`}
-                    placeholder={t("form.enter_institute")}
-                  />
+                  {!isTeacher ? (
+                    <Select
+                      value={formData.instituteName}
+                      onValueChange={(value) => {
+                        setFormData({ ...formData, instituteName: value });
+                        const error = validateField("instituteName", value);
+                        setErrors(prev => ({ ...prev, instituteName: error || undefined }));
+                      }}
+                      disabled={true}
+                    >
+                      <SelectTrigger className="rounded-lg h-11 bg-muted/50 cursor-not-allowed">
+                        <SelectValue placeholder={t("form.select_institute")} />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover">
+                        <SelectItem value="IIT Delhi">IIT Delhi</SelectItem>
+                        <SelectItem value="IIT Bombay">IIT Bombay</SelectItem>
+                        <SelectItem value="NIT Trichy">NIT Trichy</SelectItem>
+                        <SelectItem value="Delhi University">Delhi University</SelectItem>
+                        <SelectItem value="Anna University">Anna University</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input
+                      id="instituteName"
+                      value={formData.instituteName}
+                      onChange={(e) => {
+                        setFormData({ ...formData, instituteName: e.target.value });
+                        const error = validateField("instituteName", e.target.value);
+                        setErrors(prev => ({ ...prev, instituteName: error || undefined }));
+                      }}
+                      className={`rounded-lg h-11 ${errors.instituteName ? "border-destructive ring-2 ring-destructive/20" : ""}`}
+                      placeholder={t("form.enter_institute")}
+                    />
+                  )}
                   {errors.instituteName && <p className="text-sm font-medium text-destructive">{errors.instituteName}</p>}
                 </FormField>
               </div>
@@ -342,6 +410,51 @@ const EditEntity = () => {
                   {errors.email && <p className="text-sm font-medium text-destructive">{errors.email}</p>}
                 </FormField>
               </div>
+
+              {/* Degree and Grade fields - only for students */}
+              {!isTeacher && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <FormField>
+                    <Label htmlFor="degree" className="text-sm font-semibold text-foreground flex items-center gap-2">
+                      {t("form.degree")}
+                      <Badge variant="secondary" className="text-xs gap-1"><Shield className="h-3 w-3" />Attestable</Badge>
+                    </Label>
+                    <Select
+                      value={formData.degree}
+                      onValueChange={(value) => {
+                        setFormData({ ...formData, degree: value });
+                      }}
+                    >
+                      <SelectTrigger className="rounded-lg h-11">
+                        <SelectValue placeholder={t("form.select_degree")} />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover">
+                        <SelectItem value="B.Tech">B.Tech</SelectItem>
+                        <SelectItem value="M.Tech">M.Tech</SelectItem>
+                        <SelectItem value="B.Sc">B.Sc</SelectItem>
+                        <SelectItem value="M.Sc">M.Sc</SelectItem>
+                        <SelectItem value="MBA">MBA</SelectItem>
+                        <SelectItem value="PhD">PhD</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormField>
+                  <FormField>
+                    <Label htmlFor="grade" className="text-sm font-semibold text-foreground flex items-center gap-2">
+                      {t("form.grade")}
+                      <Badge variant="secondary" className="text-xs gap-1"><Shield className="h-3 w-3" />Attestable</Badge>
+                    </Label>
+                    <Input
+                      id="grade"
+                      value={formData.grade}
+                      onChange={(e) => {
+                        setFormData({ ...formData, grade: e.target.value });
+                      }}
+                      className="rounded-lg h-11"
+                      placeholder={t("form.enter_grade")}
+                    />
+                  </FormField>
+                </div>
+              )}
             </CardContent>
           </Card>
 

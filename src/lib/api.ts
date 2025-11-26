@@ -1,4 +1,4 @@
-const BASE_URL = "";
+const BASE_URL = import.meta.env.DEV ? "" : "";
 
 // Token management
 export const setAuthToken = (token: string) => {
@@ -244,6 +244,24 @@ export interface TeacherProfile {
   email: string;
 }
 
+export interface StudentProfile {
+  osUpdatedAt: string;
+  gender: string;
+  osUpdatedBy: string;
+  mobile: string;
+  osid: string;
+  osOwner: string[];
+  instituteName: string;
+  osCreatedAt: string;
+  fullName: string;
+  osCreatedBy: string;
+  email: string;
+  dob: string;
+  degree?: string;
+  grade?: string;
+  studentInstituteAttest?: any[];
+}
+
 export interface Claim {
   id: string;
   entity: string;
@@ -337,7 +355,7 @@ export const downloadStudentCertificate = async (
       method: "GET",
       headers: {
         "Accept": "application/pdf",
-        "template-id": "cmi8pmik90028ms0jd3ceds7m",
+        "template-id": "cmifwkn7h0006k60m1434q5tm",
         "Authorization": `Bearer ${token}`,
       },
     }
@@ -363,6 +381,8 @@ export const addStudent = async (studentData: {
   mobile: string;
   email: string;
   instituteName: string;
+  degree?: string;
+  grade?: string;
 }) => {
   const token = getAuthToken();
   
@@ -395,6 +415,8 @@ export const updateStudent = async (studentId: string, studentData: {
   mobile?: string;
   email?: string;
   instituteName?: string;
+  degree?: string;
+  grade?: string;
 }) => {
   const token = getAuthToken();
   
@@ -532,6 +554,36 @@ export const requestClaim = async (studentId: string) => {
       handleUnauthorized();
     }
     throw new Error("Failed to request claim");
+  }
+
+  const data = await response.json();
+  return data;
+};
+
+// Request attestation for specific field changes (when attestable fields are updated)
+export const attestFieldClaim = async (studentId: string, fields: string[]) => {
+  const token = getAuthToken();
+  
+  const response = await fetch(`${BASE_URL}/registry/api/v1/send`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      entityName: "Student",
+      entityId: studentId,
+      name: "studentInstituteAttest",
+      fields: fields, // Fields that were changed: degree, grade, instituteName
+    }),
+  });
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      handleUnauthorized();
+    }
+    throw new Error("Failed to request attestation for field changes");
   }
 
   const data = await response.json();

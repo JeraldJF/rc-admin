@@ -65,12 +65,18 @@ const Claims = () => {
       // Search student by email to get osid
       const searchResults = await searchStudentByEmail(userEmail);
       
-      if (!searchResults || searchResults.length === 0) {
+      // Handle search response - could be array or object with data property
+      const studentsArray = Array.isArray(searchResults) ? searchResults : (searchResults.data || []);
+      
+      if (!studentsArray || studentsArray.length === 0) {
         setClaims([]);
         return;
       }
       
-      const osid = searchResults[0].osid;
+      const osid = studentsArray[0].osid;
+      
+      // Store student osid in localStorage for later use
+      localStorage.setItem("studentOsid", osid);
       
       // Get student details including attestations
       const studentData = await getStudentById(osid);
@@ -223,11 +229,15 @@ const Claims = () => {
       
       // Search student to get osid
       const searchResults = await searchStudentByEmail(userEmail);
-      if (!searchResults || searchResults.length === 0) {
+      
+      // Handle search response - could be array or object with data property
+      const studentsArray = Array.isArray(searchResults) ? searchResults : (searchResults.data || []);
+      
+      if (!studentsArray || studentsArray.length === 0) {
         throw new Error("Student not found");
       }
       
-      const studentId = searchResults[0].osid;
+      const studentId = studentsArray[0].osid;
       const attestationName = "studentInstituteAttest";
       const attestationId = claim.attestationId || "";
       
@@ -369,7 +379,7 @@ const Claims = () => {
             <AlertDialogDescription className="space-y-3">
               <p>{t("confirm.request_claim_desc")}</p>
               <div className="bg-muted p-3 rounded-lg">
-                <p className="font-semibold text-foreground">Royal University of Phnom Penh</p>
+                <p className="font-semibold text-foreground">Sanketika</p>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>

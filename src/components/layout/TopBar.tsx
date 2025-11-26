@@ -157,13 +157,13 @@ export const TopBar = ({ title }: TopBarProps) => {
         </Select>
         <div className="flex items-center gap-3 pl-4 border-l">
           <DropdownMenu>
-            <DropdownMenuTrigger asChild disabled={userRole === "admin"}>
+            <DropdownMenuTrigger asChild disabled={userRole === "admin" || userRole === "student"}>
               <button 
                 className={cn(
                   "flex items-center gap-3 transition-colors focus:outline-none",
-                  userRole === "admin" ? "opacity-50 cursor-not-allowed" : "hover:text-primary"
+                  (userRole === "admin" || userRole === "student") ? "opacity-50 cursor-not-allowed" : "hover:text-primary"
                 )}
-                disabled={userRole === "admin"}
+                disabled={userRole === "admin" || userRole === "student"}
               >
                 <div className={cn(
                   "h-8 w-8 rounded-full bg-primary flex items-center justify-center",

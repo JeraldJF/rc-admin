@@ -10,14 +10,16 @@ export default defineConfig(({ mode }) => ({
     port: 8080,
     proxy: {
       '/auth': {
-        target: process.env.VITE_API_BASE_URL || 'http://localhost:3000',
+        target: process.env.VITE_API_BASE_URL || '',
         changeOrigin: true,
         secure: false,
+        rewrite: (path) => path,
       },
       '/registry': {
-        target: process.env.VITE_API_BASE_URL || 'http://localhost:3000',
+        target: process.env.VITE_API_BASE_URL || '',
         changeOrigin: true,
         secure: false,
+        rewrite: (path) => path,
       },
     },
   },

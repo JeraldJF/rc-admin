@@ -94,7 +94,7 @@ const Login = () => {
         
         // Navigate based on role
         if (role === "student") {
-          navigate("/claims");
+          navigate("/profile");
         } else {
           navigate("/registry");
         }

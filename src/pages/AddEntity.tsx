@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft, CalendarIcon, Save, Loader2 } from "lucide-react";
+import { ArrowLeft, CalendarIcon, Save, Loader2, Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Calendar } from "@/components/ui/calendar";
@@ -14,6 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { addStudent, addTeacher } from "@/lib/api";
+import { Badge } from "@/components/ui/badge";
 
 const FormField = ({ children }: { children: React.ReactNode }) => (
   <div className="space-y-2.5">{children}</div>
@@ -35,6 +36,8 @@ const AddEntity = () => {
     instituteName: "",
     dob: "",
     subject: "", // For teachers
+    degree: "", // For students
+    grade: "", // For students
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -105,6 +108,8 @@ const AddEntity = () => {
             mobile: formData.mobile,
             email: formData.email,
             instituteName: formData.instituteName,
+            degree: formData.degree,
+            grade: formData.grade,
           });
           toast({
             title: "✅ " + t("toast.student_added"),
@@ -229,20 +234,29 @@ const AddEntity = () => {
                   {errors.dob && <p className="text-sm font-medium text-destructive">{errors.dob}</p>}
                 </FormField>
                 <FormField>
-                  <Label htmlFor="instituteName" className="text-sm font-semibold text-foreground">
+                  <Label htmlFor="instituteName" className="text-sm font-semibold text-foreground flex items-center gap-2">
                     {t("form.institute_name")} <span className="text-destructive">*</span>
+                    <Badge variant="secondary" className="text-xs gap-1"><Shield className="h-3 w-3" />Attestable</Badge>
                   </Label>
-                  <Input
-                    id="instituteName"
+                  <Select
                     value={formData.instituteName}
-                    onChange={(e) => {
-                      setFormData({ ...formData, instituteName: e.target.value });
-                      const error = validateField("instituteName", e.target.value);
+                    onValueChange={(value) => {
+                      setFormData({ ...formData, instituteName: value });
+                      const error = validateField("instituteName", value);
                       setErrors(prev => ({ ...prev, instituteName: error || undefined }));
                     }}
-                    className={`rounded-lg h-11 ${errors.instituteName ? "border-destructive ring-2 ring-destructive/20" : ""}`}
-                    placeholder={t("form.enter_institute")}
-                  />
+                  >
+                    <SelectTrigger className={`rounded-lg h-11 ${errors.instituteName ? "border-destructive ring-2 ring-destructive/20" : ""}`}>
+                      <SelectValue placeholder={isTeacher ? t("form.select_institute") : t("form.select_institute")} />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover">
+                      <SelectItem value="IIT Delhi">IIT Delhi</SelectItem>
+                      <SelectItem value="IIT Bombay">IIT Bombay</SelectItem>
+                      <SelectItem value="NIT Trichy">NIT Trichy</SelectItem>
+                      <SelectItem value="Delhi University">Delhi University</SelectItem>
+                      <SelectItem value="Anna University">Anna University</SelectItem>
+                    </SelectContent>
+                  </Select>
                   {errors.instituteName && <p className="text-sm font-medium text-destructive">{errors.instituteName}</p>}
                 </FormField>
               </div>
@@ -285,6 +299,51 @@ const AddEntity = () => {
                   {errors.email && <p className="text-sm font-medium text-destructive">{errors.email}</p>}
                 </FormField>
               </div>
+
+              {/* Degree and Grade fields - only for students (Optional) */}
+              {!isTeacher && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <FormField>
+                    <Label htmlFor="degree" className="text-sm font-semibold text-foreground flex items-center gap-2">
+                      {t("form.degree")} <span className="text-muted-foreground text-xs">(Optional)</span>
+                      <Badge variant="secondary" className="text-xs gap-1"><Shield className="h-3 w-3" />Attestable</Badge>
+                    </Label>
+                    <Select
+                      value={formData.degree}
+                      onValueChange={(value) => {
+                        setFormData({ ...formData, degree: value });
+                      }}
+                    >
+                      <SelectTrigger className="rounded-lg h-11">
+                        <SelectValue placeholder={t("form.select_degree")} />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover">
+                        <SelectItem value="B.Tech">B.Tech</SelectItem>
+                        <SelectItem value="M.Tech">M.Tech</SelectItem>
+                        <SelectItem value="B.Sc">B.Sc</SelectItem>
+                        <SelectItem value="M.Sc">M.Sc</SelectItem>
+                        <SelectItem value="MBA">MBA</SelectItem>
+                        <SelectItem value="PhD">PhD</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormField>
+                  <FormField>
+                    <Label htmlFor="grade" className="text-sm font-semibold text-foreground flex items-center gap-2">
+                      {t("form.grade")} <span className="text-muted-foreground text-xs">(Optional)</span>
+                      <Badge variant="secondary" className="text-xs gap-1"><Shield className="h-3 w-3" />Attestable</Badge>
+                    </Label>
+                    <Input
+                      id="grade"
+                      value={formData.grade}
+                      onChange={(e) => {
+                        setFormData({ ...formData, grade: e.target.value });
+                      }}
+                      className="rounded-lg h-11"
+                      placeholder={t("form.enter_grade")}
+                    />
+                  </FormField>
+                </div>
+              )}
 
               {/* Subject field - only for teachers (admin adding teacher) */}
               {isTeacher && (
