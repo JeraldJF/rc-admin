@@ -464,7 +464,7 @@ const ViewProfile = () => {
                         )}
                       </div>
                       <div className="flex gap-3">
-                        {!hasPendingClaims && (
+                        {!hasPendingClaims && !hasPublishedAttestation && (
                           <Button
                             type="button"
                             variant="default"
@@ -638,7 +638,7 @@ const ViewProfile = () => {
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2 text-green-700 dark:text-green-500">
                         <Shield className="h-5 w-5" />
-                        Older Attestations
+                        Attestation
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
