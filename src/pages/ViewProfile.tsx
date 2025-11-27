@@ -24,6 +24,7 @@ import {
   TeacherProfile,
   StudentProfile,
   updateStudent,
+  updateTeacher,
   attestFieldClaim,
   downloadStudentCertificate
 } from "@/lib/api";
@@ -51,6 +52,7 @@ const ViewProfile = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [hasPublishedAttestation, setHasPublishedAttestation] = useState(false);
   const [originalAttestableData, setOriginalAttestableData] = useState<{
+    fullName?: string;
     degree?: string;
     grade?: string;
     instituteName?: string;
@@ -100,6 +102,7 @@ const ViewProfile = () => {
       if (teachersArray && teachersArray.length > 0) {
         const teacherSummary = teachersArray[0];
         const osid = teacherSummary.osid;
+        localStorage.setItem("teacherOsid", osid);
         
         // Step 2: Get full teacher details by osid
         const teacherDetails: TeacherProfile = await getTeacherById(osid);
@@ -156,6 +159,7 @@ const ViewProfile = () => {
         setFormData(studentFormData);
         // Store original attestable data
         setOriginalAttestableData({
+          fullName: studentDetails.fullName || "",
           degree: studentDetails.degree || "",
           grade: studentDetails.grade || "",
           instituteName: studentDetails.instituteName || "",
@@ -283,8 +287,9 @@ const ViewProfile = () => {
             grade: formData.grade,
           });
 
-          // Check if attestable fields changed (only degree/grade auto-trigger claims)
+          // Check if attestable fields changed (fullName, degree, grade auto-trigger claims)
           const changedFields: string[] = [];
+          if (formData.fullName !== originalAttestableData.fullName) changedFields.push("fullName");
           if (formData.degree !== originalAttestableData.degree) changedFields.push("degree");
           if (formData.grade !== originalAttestableData.grade) changedFields.push("grade");
 
@@ -322,8 +327,25 @@ const ViewProfile = () => {
           const userEmail = localStorage.getItem("userEmail") || "";
           await fetchStudentProfile(userEmail);
           setIsEditMode(false); // Exit edit mode after successful save
+        } else if (userRole === "teacher") {
+          // Update teacher profile
+          const teacherOsid = localStorage.getItem("teacherOsid") || "";
+          if (teacherOsid) {
+            await updateTeacher(teacherOsid, {
+              name: formData.fullName,
+              gender: formData.gender,
+              mobile: formData.mobile,
+              email: formData.email,
+              instituteName: formData.instituteName,
+            });
+            toast({
+              title: "✅ Profile updated successfully",
+              description: "Your profile has been saved.",
+              variant: "success",
+            });
+          }
         } else {
-          // For admin/teacher, just show success message (no actual API call yet)
+          // For admin, just show success message
           toast({
             title: "✅ Profile updated successfully",
             description: "Your profile has been saved.",
@@ -365,8 +387,8 @@ const ViewProfile = () => {
     
     setIsSaving(true);
     try {
-      // Raise attestation for all attestable fields (degree, grade, instituteName)
-      const attestableFields = ["degree", "grade", "instituteName"];
+      // Raise attestation for all attestable fields (fullName, degree, grade, instituteName)
+      const attestableFields = ["fullName", "degree", "grade", "instituteName"];
       await attestFieldClaim(studentId, attestableFields);
       
       toast({
@@ -534,7 +556,10 @@ const ViewProfile = () => {
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
-                        <Label className="text-sm font-semibold text-muted-foreground">Full Name</Label>
+                        <Label className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
+                          Full Name
+                          <Badge variant="secondary" className="text-xs gap-1"><Shield className="h-3 w-3" />Attestable</Badge>
+                        </Label>
                         <p className="mt-1 text-base font-medium text-foreground">{formData.fullName || "—"}</p>
                       </div>
                       <div>
@@ -697,8 +722,9 @@ const ViewProfile = () => {
                 )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField>
-                  <Label htmlFor="fullName" className="text-sm font-semibold text-foreground">
+                  <Label htmlFor="fullName" className="text-sm font-semibold text-foreground flex items-center gap-2">
                     {t("form.full_name")} {!isReadOnly && <span className="text-destructive">*</span>}
+                    {isStudent && <Badge variant="secondary" className="text-xs gap-1"><Shield className="h-3 w-3" />Attestable</Badge>}
                   </Label>
                   <Input
                     id="fullName"
@@ -799,14 +825,22 @@ const ViewProfile = () => {
                           disabled={true}
                         />
                       ) : (
-                        <Input
-                          id="instituteName"
+                        <Select
                           value={formData.instituteName}
-                          onChange={(e) => setFormData({ ...formData, instituteName: e.target.value })}
-                          className={`rounded-lg h-11 font-medium ${isStudent || isReadOnly ? "bg-muted/50 text-foreground cursor-not-allowed" : ""} ${errors.instituteName ? "border-destructive ring-2 ring-destructive/20" : ""}`}
-                          placeholder={t("form.enter_institute")}
-                          disabled={isStudent || isReadOnly}
-                        />
+                          onValueChange={(value) => setFormData({ ...formData, instituteName: value })}
+                          disabled={isReadOnly}
+                        >
+                          <SelectTrigger className={`rounded-lg h-11 font-medium ${isReadOnly ? "bg-muted/50 cursor-not-allowed" : ""} ${errors.instituteName ? "border-destructive ring-2 ring-destructive/20" : ""}`}>
+                            <SelectValue placeholder={t("form.select_institute")} />
+                          </SelectTrigger>
+                          <SelectContent className="bg-popover">
+                            <SelectItem value="IIT Delhi">IIT Delhi</SelectItem>
+                            <SelectItem value="IIT Bombay">IIT Bombay</SelectItem>
+                            <SelectItem value="NIT Trichy">NIT Trichy</SelectItem>
+                            <SelectItem value="Delhi University">Delhi University</SelectItem>
+                            <SelectItem value="Anna University">Anna University</SelectItem>
+                          </SelectContent>
+                        </Select>
                       )}
                       {errors.instituteName && <p className="text-sm font-medium text-destructive">{errors.instituteName}</p>}
                     </FormField>

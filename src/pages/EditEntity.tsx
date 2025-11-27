@@ -69,6 +69,8 @@ const EditEntity = () => {
             instituteName: teacherData.instituteName || "",
             dob: teacherData.dob || "",
             subject: teacherData.subject || "",
+            degree: "",
+            grade: "",
           });
         } else {
           // Fetch student data

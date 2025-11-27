@@ -28,10 +28,10 @@ export const TopBar = ({ title }: TopBarProps) => {
   const { language, setLanguage, t } = useLanguage();
 
   // Determine if we should show search bar
-  const showSearchBar = location.pathname.startsWith("/entity/new") || 
+  const showSearchBar = userRole !== "student" && (location.pathname.startsWith("/entity/new") || 
                         location.pathname.startsWith("/profile") ||
                         (location.pathname.match(/^\/entity\/[^/]+$/) && !location.pathname.endsWith("/edit")) ||
-                        location.pathname.match(/^\/entity\/[^/]+\/edit$/);
+                        location.pathname.match(/^\/entity\/[^/]+\/edit$/));
 
   const isProfilePage = location.pathname === "/profile";
 
