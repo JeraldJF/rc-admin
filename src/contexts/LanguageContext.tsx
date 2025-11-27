@@ -204,6 +204,7 @@ const translations = {
     'toast.teacher_updated_desc': 'The teacher record has been updated.',
     'toast.student_updated': 'Student updated successfully',
     'toast.student_updated_desc': 'The student record has been updated.',
+    'toast.student_updated_with_claim': 'Student updated with claim',
     'toast.profile_updated': 'Profile updated successfully',
     'toast.profile_updated_desc': 'Your profile has been saved.',
     'toast.claim_approved': 'Claim approved',

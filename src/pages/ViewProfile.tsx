@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CalendarIcon, Save, User, Loader2, Shield, AlertCircle, Download } from "lucide-react";
+import { CalendarIcon, Save, User, Loader2, Shield, AlertCircle, Download, Edit2, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -48,6 +48,8 @@ const ViewProfile = () => {
   const [claims, setClaims] = useState<any[]>([]);
   const [hasPendingClaims, setHasPendingClaims] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [hasPublishedAttestation, setHasPublishedAttestation] = useState(false);
   const [originalAttestableData, setOriginalAttestableData] = useState<{
     degree?: string;
     grade?: string;
@@ -187,6 +189,10 @@ const ViewProfile = () => {
         // Check for pending claims (ATTESTATION_REQUESTED status)
         const pending = attestations.some((attest: any) => attest._osState === "ATTESTATION_REQUESTED");
         setHasPendingClaims(pending);
+        
+        // Check for published attestations
+        const hasPublished = attestations.some((attest: any) => attest._osState === "PUBLISHED");
+        setHasPublishedAttestation(hasPublished);
       }
     } catch (error) {
       toast({
@@ -277,14 +283,13 @@ const ViewProfile = () => {
             grade: formData.grade,
           });
 
-          // Check if attestable fields changed
+          // Check if attestable fields changed (only degree/grade auto-trigger claims)
           const changedFields: string[] = [];
           if (formData.degree !== originalAttestableData.degree) changedFields.push("degree");
           if (formData.grade !== originalAttestableData.grade) changedFields.push("grade");
-          if (formData.instituteName !== originalAttestableData.instituteName) changedFields.push("instituteName");
 
           if (changedFields.length > 0) {
-            // Request attestation for changed fields
+            // Request attestation for changed degree/grade fields
             try {
               await attestFieldClaim(studentId, changedFields);
               toast({
@@ -297,6 +302,7 @@ const ViewProfile = () => {
               if (userEmail) {
                 await fetchStudentProfile(userEmail);
               }
+              setIsEditMode(false); // Exit edit mode after successful save
             } catch (error) {
               toast({
                 title: "✅ Profile updated successfully",
@@ -315,6 +321,7 @@ const ViewProfile = () => {
           // Refresh claims list
           const userEmail = localStorage.getItem("userEmail") || "";
           await fetchStudentProfile(userEmail);
+          setIsEditMode(false); // Exit edit mode after successful save
         } else {
           // For admin/teacher, just show success message (no actual API call yet)
           toast({
@@ -344,11 +351,44 @@ const ViewProfile = () => {
     if (userEmail) {
       if (role === "student") {
         fetchStudentProfile(userEmail);
+        setIsEditMode(false); // Exit edit mode
       } else if (role === "teacher") {
         fetchTeacherProfile(userEmail);
       } else {
         fetchAdminProfile(userEmail);
       }
+    }
+  };
+
+  const handleRaiseClaim = async () => {
+    if (!isStudent || !studentId) return;
+    
+    setIsSaving(true);
+    try {
+      // Raise attestation for all attestable fields (degree, grade, instituteName)
+      const attestableFields = ["degree", "grade", "instituteName"];
+      await attestFieldClaim(studentId, attestableFields);
+      
+      toast({
+        title: "✅ Attestation claim raised",
+        description: "Your attestation request has been submitted for verification.",
+        variant: "default",
+      });
+      
+      // Refresh profile to update claims
+      const userEmail = localStorage.getItem("userEmail");
+      if (userEmail) {
+        await fetchStudentProfile(userEmail);
+      }
+    } catch (error) {
+      console.error("Error raising attestation claim:", error);
+      toast({
+        title: "❌ Error",
+        description: "Failed to raise attestation claim. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -397,18 +437,6 @@ const ViewProfile = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6 max-w-5xl mx-auto">
-        <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-6 rounded-xl border-2 border-primary/20">
-          <div className="flex items-center gap-4">
-            <div className="h-16 w-16 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-lg">
-              <User className="h-8 w-8 text-primary-foreground" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-foreground">{username}</h1>
-              <p className="text-sm text-muted-foreground mt-1">{getRoleDisplay(userRole)}</p>
-            </div>
-          </div>
-        </div>
-        
         {isLoading ? (
           <Card className="bg-card shadow-xl border-2 border-border rounded-2xl overflow-hidden">
             <CardContent className="pt-8 px-8 pb-8">
@@ -419,9 +447,254 @@ const ViewProfile = () => {
             </CardContent>
           </Card>
         ) : (
+          <>
+            {/* Student View Mode */}
+            {isStudent && !isEditMode ? (
+              <div className="space-y-6">
+                <Card className="bg-card shadow-xl border-2 border-border rounded-2xl overflow-hidden">
+                  <CardContent className="pt-8 px-8 pb-8">
+                    <div className="flex justify-between items-start mb-6">
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-xl font-bold text-foreground">My Profile</h2>
+                        {hasPublishedAttestation && (
+                          <div className="flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-xs font-semibold">
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            Verified
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex gap-3">
+                        {!hasPendingClaims && (
+                          <Button
+                            type="button"
+                            variant="default"
+                            onClick={handleRaiseClaim}
+                            disabled={isSaving}
+                            className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+                          >
+                            {isSaving ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Processing...
+                              </>
+                            ) : (
+                              <>
+                                <Shield className="h-4 w-4" />
+                                Get Attested
+                              </>
+                            )}
+                          </Button>
+                        )}
+                        {claims.filter(c => c._osState === "PUBLISHED").length > 0 && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                              const publishedClaim = claims.find(c => c._osState === "PUBLISHED");
+                              if (publishedClaim) handleDownloadCertificate(publishedClaim);
+                            }}
+                            disabled={downloadingId !== null}
+                            className="gap-2"
+                          >
+                            {downloadingId ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Downloading...
+                              </>
+                            ) : (
+                              <>
+                                <Download className="h-4 w-4" />
+                                Download Certificate
+                              </>
+                            )}
+                          </Button>
+                        )}
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                type="button"
+                                onClick={() => setIsEditMode(true)}
+                                disabled={hasPendingClaims}
+                                className={`gap-2 ${hasPendingClaims ? 'cursor-not-allowed opacity-50' : ''}`}
+                              >
+                                <Edit2 className="h-4 w-4" />
+                                Edit Profile
+                              </Button>
+                            </TooltipTrigger>
+                            {hasPendingClaims && (
+                              <TooltipContent>
+                                <p>Your request is pending approval. You cannot edit your profile until it's processed.</p>
+                              </TooltipContent>
+                            )}
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <Label className="text-sm font-semibold text-muted-foreground">Full Name</Label>
+                        <p className="mt-1 text-base font-medium text-foreground">{formData.fullName || "—"}</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-semibold text-muted-foreground">Gender</Label>
+                        <p className="mt-1 text-base font-medium text-foreground">{formData.gender || "—"}</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-semibold text-muted-foreground">Date of Birth</Label>
+                        <p className="mt-1 text-base font-medium text-foreground">
+                          {formData.dob ? format(new Date(formData.dob), "PPP") : "—"}
+                        </p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-semibold text-muted-foreground">Mobile</Label>
+                        <p className="mt-1 text-base font-medium text-foreground">{formData.mobile || "—"}</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
+                          Institute Name
+                          <Badge variant="secondary" className="text-xs gap-1"><Shield className="h-3 w-3" />Attestable</Badge>
+                        </Label>
+                        <p className="mt-1 text-base font-medium text-foreground">{formData.instituteName || "—"}</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-semibold text-muted-foreground">Email</Label>
+                        <p className="mt-1 text-base font-medium text-foreground">{formData.email || "—"}</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
+                          Degree
+                          <Badge variant="secondary" className="text-xs gap-1"><Shield className="h-3 w-3" />Attestable</Badge>
+                        </Label>
+                        <p className="mt-1 text-base font-medium text-foreground">{formData.degree || "—"}</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
+                          Grade
+                          <Badge variant="secondary" className="text-xs gap-1"><Shield className="h-3 w-3" />Attestable</Badge>
+                        </Label>
+                        <p className="mt-1 text-base font-medium text-foreground">{formData.grade || "—"}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Pending Claims Table - View Mode */}
+                {claims.filter(c => c._osState === "ATTESTATION_REQUESTED").length > 0 && (
+                  <Card className="bg-amber-50/50 dark:bg-amber-950/20">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-amber-700 dark:text-amber-500">
+                        <AlertCircle className="h-5 w-5" />
+                        Pending Attestation Claims
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Date Requested</TableHead>
+                            <TableHead>Fields Changed</TableHead>
+                            <TableHead>Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {claims
+                            .filter((claim) => claim._osState === "ATTESTATION_REQUESTED")
+                            .map((claim) => (
+                              <TableRow key={claim.id}>
+                                <TableCell>
+                                  {claim.dateRequested ? format(new Date(claim.dateRequested), "yyyy-MM-dd HH:mm") : "N/A"}
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex flex-wrap gap-1">
+                                    {claim.fields && claim.fields.length > 0 ? (
+                                      claim.fields.map((field: string) => (
+                                        <Badge key={field} variant="outline" className="text-xs">
+                                          {field}
+                                        </Badge>
+                                      ))
+                                    ) : (
+                                      <span className="text-sm text-muted-foreground">All fields</span>
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge variant="secondary" className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                                    Pending Approval
+                                  </Badge>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Older Attestations Table - View Mode */}
+                {claims.filter(c => c._osState === "PUBLISHED").length > 0 && (
+                  <Card className="bg-green-50/50 dark:bg-green-950/20">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-green-700 dark:text-green-500">
+                        <Shield className="h-5 w-5" />
+                        Older Attestations
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Date Approved</TableHead>
+                            <TableHead>Fields Attested</TableHead>
+                            <TableHead>Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {claims
+                            .filter((claim) => claim._osState === "PUBLISHED")
+                            .map((claim) => (
+                              <TableRow key={claim.id}>
+                                <TableCell>
+                                  {claim.dateApproved
+                                    ? formatDistanceToNow(new Date(claim.dateApproved), { addSuffix: true })
+                                    : "N/A"}
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex flex-wrap gap-1">
+                                    {claim.fields && claim.fields.length > 0 ? (
+                                      claim.fields.map((field: string) => (
+                                        <Badge key={field} variant="outline" className="text-xs">
+                                          {field}
+                                        </Badge>
+                                      ))
+                                    ) : (
+                                      <span className="text-sm text-muted-foreground">All fields</span>
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge variant="default" className="bg-green-600 hover:bg-green-700">
+                                    Approved
+                                  </Badge>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            ) : (
+              /* Edit Mode Form - Students & Teachers/Admins */
           <form onSubmit={handleSubmit} className="space-y-6">
             <Card className="bg-card shadow-xl border-2 border-border rounded-2xl overflow-hidden">
-              <CardContent className="pt-8 px-8 pb-8 space-y-6">
+              <CardContent className="pt-8 px-8 pb-8 space-y-6">{isStudent && (
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-bold text-foreground">Edit Profile</h2>
+                  </div>
+                )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField>
                   <Label htmlFor="fullName" className="text-sm font-semibold text-foreground">
@@ -643,168 +916,6 @@ const ViewProfile = () => {
             </CardContent>
           </Card>
 
-          {/* Claims Section - Only for Students */}
-          {isStudent && claims.length > 0 && (
-            <>
-              {/* Pending Claims Table */}
-              {claims.filter(c => c._osState === "ATTESTATION_REQUESTED").length > 0 && (
-                <Card className="bg-amber-50/50 dark:bg-amber-950/20">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-amber-700 dark:text-amber-500">
-                      <AlertCircle className="h-5 w-5" />
-                      Pending Attestation Claims
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Date Requested</TableHead>
-                          <TableHead>Fields Changed</TableHead>
-                          <TableHead>Status</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {claims
-                          .filter((claim) => claim._osState === "ATTESTATION_REQUESTED")
-                          .map((claim) => {
-                            let propertyData: any = {};
-                            try {
-                              propertyData = JSON.parse(claim.propertyData || '{}');
-                            } catch (e) {
-                              console.error('Failed to parse:', e);
-                            }
-                            return (
-                              <TableRow key={claim.id}>
-                                <TableCell>
-                                  {claim.dateRequested ? format(new Date(claim.dateRequested), "yyyy-MM-dd HH:mm") : "N/A"}
-                                </TableCell>
-                                <TableCell>
-                                  <div className="flex flex-wrap gap-1">
-                                    {claim.fields && claim.fields.length > 0 ? (
-                                      claim.fields.map((field: string) => (
-                                        <Badge key={field} variant="outline" className="text-xs">
-                                          {field}
-                                        </Badge>
-                                      ))
-                                    ) : (
-                                      <span className="text-sm text-muted-foreground">All fields</span>
-                                    )}
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  <Badge variant="secondary" className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                                    Pending Approval
-                                  </Badge>
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Published/Approved Claims Table */}
-              {claims.filter(c => c._osState === "PUBLISHED").length > 0 && (
-                <Card className="bg-green-50/50 dark:bg-green-950/20">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-green-700 dark:text-green-500">
-                      <Shield className="h-5 w-5" />
-                      Older Attestations
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Date Approved</TableHead>
-                          <TableHead>Fields Attested</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {claims
-                          .filter((claim) => claim._osState === "PUBLISHED")
-                          .map((claim) => {
-                            let propertyData: any = {};
-                            try {
-                              propertyData = JSON.parse(claim.propertyData || '{}');
-                            } catch (e) {
-                              console.error('Failed to parse:', e);
-                            }
-                            return (
-                              <TableRow key={claim.id}>
-                                <TableCell>
-                                  {claim.dateApproved
-                                    ? formatDistanceToNow(new Date(claim.dateApproved), { addSuffix: true })
-                                    : "N/A"}
-                                </TableCell>
-                                <TableCell>
-                                  <div className="flex flex-wrap gap-1">
-                                    {claim.fields && claim.fields.length > 0 ? (
-                                      claim.fields.map((field: string) => (
-                                        <Badge key={field} variant="outline" className="text-xs">
-                                          {field}
-                                        </Badge>
-                                      ))
-                                    ) : (
-                                      <span className="text-sm text-muted-foreground">All fields</span>
-                                    )}
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  <Badge variant="default" className="bg-green-600 hover:bg-green-700">
-                                    Approved
-                                  </Badge>
-                                </TableCell>
-                                <TableCell>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleDownloadCertificate(claim)}
-                                    disabled={downloadingId === claim.id}
-                                    className="gap-2"
-                                  >
-                                    {downloadingId === claim.id ? (
-                                      <>
-                                        <Loader2 className="h-3 w-3 animate-spin" />
-                                        Downloading...
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Download className="h-3 w-3" />
-                                        Certificate
-                                      </>
-                                    )}
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
-              )}
-            </>
-          )}
-
-          {/* Alert for Pending Claims */}
-          {!isReadOnly && isStudent && hasPendingClaims && (
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <div className="ml-2">
-                <p className="font-medium">Profile Update Restricted</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Your earlier request is pending so after approval you can change your profile
-                </p>
-              </div>
-            </Alert>
-          )}
-
           {/* Save/Cancel Buttons for Teachers - Outside Card */}
           {!isReadOnly && !isStudent && (
             <div className="flex justify-end gap-4">
@@ -827,6 +938,8 @@ const ViewProfile = () => {
             </div>
           )}
         </form>
+            )}
+          </>
         )}
       </div>
     </DashboardLayout>
