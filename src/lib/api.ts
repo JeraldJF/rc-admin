@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.DEV ? "" : "";
+const BASE_URL = "";
 
 // Token management
 export const setAuthToken = (token: string) => {
