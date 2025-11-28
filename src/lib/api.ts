@@ -1,24 +1,23 @@
 const BASE_URL = "";
 
-// Token management
 export const setAuthToken = (token: string) => {
-  localStorage.setItem("accessToken", token);
+  sessionStorage.setItem("accessToken", token);
 };
 
 export const getAuthToken = (): string | null => {
-  return localStorage.getItem("accessToken");
+  return sessionStorage.getItem("accessToken");
 };
 
 export const clearAuthToken = () => {
-  localStorage.removeItem("accessToken");
+  sessionStorage.removeItem("accessToken");
 };
 
 // Auto-logout on 401 error
 const handleUnauthorized = () => {
   clearAuthToken();
-  localStorage.removeItem("isLoggedIn");
-  localStorage.removeItem("userEmail");
-  localStorage.removeItem("userRole");
+  sessionStorage.removeItem("isLoggedIn");
+  sessionStorage.removeItem("userEmail");
+  sessionStorage.removeItem("userRole");
   window.location.href = "/login";
 };
 
@@ -49,9 +48,10 @@ export const loginApi = async (username: string, password: string) => {
 // Search Teacher by email
 export const searchTeacherByEmail = async (email: string) => {
   const token = getAuthToken();
-  
+
   const response = await fetch(`${BASE_URL}/registry/api/v1/Teacher/search`, {
     method: "POST",
+    credentials: "include", // Important: allows cookies to be sent
     headers: {
       "Content-Type": "application/json",
       "Accept": "application/json",
@@ -82,9 +82,10 @@ export const searchTeacherByEmail = async (email: string) => {
 // Get Teacher by ID
 export const getTeacherById = async (osid: string) => {
   const token = getAuthToken();
-  
+
   const response = await fetch(`${BASE_URL}/registry/api/v1/Teacher/${osid}`, {
     method: "GET",
+    credentials: "include",
     headers: {
       "Accept": "application/json",
       "Authorization": `Bearer ${token}`,
@@ -105,9 +106,10 @@ export const getTeacherById = async (osid: string) => {
 // Search Student by email
 export const searchStudentByEmail = async (email: string) => {
   const token = getAuthToken();
-  
+
   const response = await fetch(`${BASE_URL}/registry/api/v1/Student/search`, {
     method: "POST",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       "Accept": "application/json",
@@ -134,9 +136,10 @@ export const searchStudentByEmail = async (email: string) => {
 // Get Student by ID
 export const getStudentById = async (osid: string) => {
   const token = getAuthToken();
-  
+
   const response = await fetch(`${BASE_URL}/registry/api/v1/Student/${osid}`, {
     method: "GET",
+    credentials: "include",
     headers: {
       "Accept": "application/json",
       "Authorization": `Bearer ${token}`,
@@ -157,9 +160,10 @@ export const getStudentById = async (osid: string) => {
 // Search Admin by email
 export const searchAdminByEmail = async (email: string) => {
   const token = getAuthToken();
-  
+
   const response = await fetch(`${BASE_URL}/registry/api/v1/Admin/search`, {
     method: "POST",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       "Accept": "application/json",
@@ -186,9 +190,10 @@ export const searchAdminByEmail = async (email: string) => {
 // Get Admin by ID
 export const getAdminById = async (osid: string) => {
   const token = getAuthToken();
-  
+
   const response = await fetch(`${BASE_URL}/registry/api/v1/Admin/${osid}`, {
     method: "GET",
+    credentials: "include",
     headers: {
       "Accept": "application/json",
       "Authorization": `Bearer ${token}`,
@@ -209,9 +214,10 @@ export const getAdminById = async (osid: string) => {
 // Get Teacher Claims
 export const getTeacherClaims = async () => {
   const token = getAuthToken();
-  
+
   const response = await fetch(`${BASE_URL}/registry/api/v1/Teacher/claims`, {
     method: "GET",
+    credentials: "include",
     headers: {
       "Authorization": `Bearer ${token}`,
     },
@@ -228,71 +234,13 @@ export const getTeacherClaims = async () => {
   return data;
 };
 
-// Types for API responses
-export interface TeacherProfile {
-  osUpdatedAt: string;
-  gender: string;
-  osUpdatedBy: string;
-  subject: string;
-  mobile: string;
-  osid: string;
-  osOwner: string[];
-  instituteName: string;
-  osCreatedAt: string;
-  name: string;
-  osCreatedBy: string;
-  email: string;
-}
-
-export interface StudentProfile {
-  osUpdatedAt: string;
-  gender: string;
-  osUpdatedBy: string;
-  mobile: string;
-  osid: string;
-  osOwner: string[];
-  instituteName: string;
-  osCreatedAt: string;
-  fullName: string;
-  osCreatedBy: string;
-  email: string;
-  dob: string;
-  degree?: string;
-  grade?: string;
-  studentInstituteAttest?: any[];
-}
-
-export interface Claim {
-  id: string;
-  entity: string;
-  entityId: string;
-  propertyURI: string;
-  createdAt: string;
-  updatedAt: string;
-  attestedOn: string | null;
-  status: "OPEN" | "CLOSED";
-  conditions: string;
-  attestorEntity: string;
-  requestorName: string;
-  propertyData: string;
-  attestationId: string;
-  attestationName: string;
-  attestorUserId: string | null;
-  closed: boolean;
-}
-
-export interface ClaimsResponse {
-  totalPages: number;
-  content: Claim[];
-  totalElements: number;
-}
-
 // Search all Teachers (Admin)
 export const searchAllTeachers = async () => {
   const token = getAuthToken();
-  
+
   const response = await fetch(`${BASE_URL}/registry/api/v1/Teacher/search`, {
     method: "POST",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       "Accept": "application/json",
@@ -317,9 +265,10 @@ export const searchAllTeachers = async () => {
 // Search all Students (Teacher)
 export const searchAllStudents = async () => {
   const token = getAuthToken();
-  
+
   const response = await fetch(`${BASE_URL}/registry/api/v1/Student/search`, {
     method: "POST",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       "Accept": "application/json",
@@ -348,14 +297,15 @@ export const downloadStudentCertificate = async (
   attestationId: string
 ) => {
   const token = getAuthToken();
-  
+
   const response = await fetch(
     `${BASE_URL}/registry/api/v1/Student/${studentId}/attestation/${attestationName}/${attestationId}`,
     {
       method: "GET",
+      credentials: "include",
       headers: {
         "Accept": "application/pdf",
-        "template-id": "cmifwkn7h0006k60m1434q5tm",
+        "template-id": "cmi8pmik90028ms0jd3ceds7m",
         "Authorization": `Bearer ${token}`,
       },
     }
@@ -385,9 +335,10 @@ export const addStudent = async (studentData: {
   grade?: string;
 }) => {
   const token = getAuthToken();
-  
+
   const response = await fetch(`${BASE_URL}/registry/api/v1/Student`, {
     method: "POST",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       "Accept": "application/json",
@@ -419,9 +370,10 @@ export const updateStudent = async (studentId: string, studentData: {
   grade?: string;
 }) => {
   const token = getAuthToken();
-  
+
   const response = await fetch(`${BASE_URL}/registry/api/v1/Student/${studentId}`, {
     method: "PUT",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       "Accept": "application/json",
@@ -451,9 +403,10 @@ export const addTeacher = async (teacherData: {
   gender: string;
 }) => {
   const token = getAuthToken();
-  
+
   const response = await fetch(`${BASE_URL}/registry/api/v1/Teacher`, {
     method: "POST",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       "Accept": "application/json",
@@ -483,9 +436,10 @@ export const updateTeacher = async (teacherId: string, teacherData: {
   gender?: string;
 }) => {
   const token = getAuthToken();
-  
+
   const response = await fetch(`${BASE_URL}/registry/api/v1/Teacher/${teacherId}`, {
     method: "PUT",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       "Accept": "application/json",
@@ -508,9 +462,10 @@ export const updateTeacher = async (teacherId: string, teacherData: {
 // Attest/Approve Claim (Teacher token)
 export const attestClaim = async (claimId: string) => {
   const token = getAuthToken();
-  
+
   const response = await fetch(`${BASE_URL}/registry/api/v1/Teacher/claims/${claimId}/attest`, {
     method: "POST",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       "Authorization": `Bearer ${token}`,
@@ -534,9 +489,10 @@ export const attestClaim = async (claimId: string) => {
 // Request for Claim (Student token)
 export const requestClaim = async (studentId: string) => {
   const token = getAuthToken();
-  
+
   const response = await fetch(`${BASE_URL}/registry/api/v1/send`, {
     method: "POST",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       "Accept": "application/json",
@@ -563,9 +519,10 @@ export const requestClaim = async (studentId: string) => {
 // Request attestation for specific field changes (when attestable fields are updated)
 export const attestFieldClaim = async (studentId: string, fields: string[]) => {
   const token = getAuthToken();
-  
+
   const response = await fetch(`${BASE_URL}/registry/api/v1/send`, {
     method: "POST",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       "Accept": "application/json",

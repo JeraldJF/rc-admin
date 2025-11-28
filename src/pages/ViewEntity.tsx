@@ -28,7 +28,7 @@ const ViewEntity = () => {
   const [userRole, setUserRole] = useState<string>("admin");
 
   useEffect(() => {
-    const role = localStorage.getItem("userRole") || "admin";
+    const role = sessionStorage.getItem("userRole") || "admin";
     setUserRole(role);
   }, []);
 
@@ -38,7 +38,7 @@ const ViewEntity = () => {
       
       setLoading(true);
       try {
-        const role = localStorage.getItem("userRole") || "admin";
+        const role = sessionStorage.getItem("userRole") || "admin";
         
         if (role === "admin") {
           // Fetch teacher data

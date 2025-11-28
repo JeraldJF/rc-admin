@@ -42,7 +42,7 @@ const AddEntity = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    const role = localStorage.getItem("userRole") || "admin";
+    const role = sessionStorage.getItem("userRole") || "admin";
     setUserRole(role);
   }, []);
 

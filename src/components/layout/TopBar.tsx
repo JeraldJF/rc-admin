@@ -64,13 +64,13 @@ export const TopBar = ({ title }: TopBarProps) => {
       }
     }
     
-    const userEmail = localStorage.getItem("userEmail");
+    const userEmail = sessionStorage.getItem("userEmail");
     if (userEmail) {
       const emailUsername = userEmail.split("@")[0];
       setUsername(emailUsername);
     }
     
-    const role = localStorage.getItem("userRole") || "admin";
+    const role = sessionStorage.getItem("userRole") || "admin";
     setUserRole(role);
   }, [theme]);
 

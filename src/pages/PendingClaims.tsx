@@ -43,7 +43,7 @@ const PendingClaims = () => {
   const [approvingId, setApprovingId] = useState<string | null>(null);
   
   useEffect(() => {
-    const role = localStorage.getItem("userRole") || "admin";
+    const role = sessionStorage.getItem("userRole") || "admin";
     setUserRole(role);
     
     // Fetch pending claims for teachers

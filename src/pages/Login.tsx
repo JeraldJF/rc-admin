@@ -68,9 +68,9 @@ const Login = () => {
         setAuthToken(response.access_token);
         
         // Store user details
-        localStorage.setItem("isLoggedIn", "true");
-        localStorage.setItem("userEmail", email);
-        localStorage.setItem("userRole", role);
+        sessionStorage.setItem("isLoggedIn", "true");
+        sessionStorage.setItem("userEmail", email);
+        sessionStorage.setItem("userRole", role);
         
         // If student, fetch and store their osid
         if (role === "student") {
@@ -78,7 +78,7 @@ const Login = () => {
             const searchResults = await searchStudentByEmail(email);
             if (searchResults && searchResults.length > 0) {
               const studentOsid = searchResults[0].osid;
-              localStorage.setItem("studentOsid", studentOsid);
+              sessionStorage.setItem("studentOsid", studentOsid);
             }
           } catch (error) {
             console.error("Failed to fetch student osid:", error);

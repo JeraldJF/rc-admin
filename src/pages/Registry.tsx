@@ -63,7 +63,7 @@ const Registry = () => {
   const recordsPerPage = 10;
 
   useEffect(() => {
-    const role = localStorage.getItem("userRole") || "admin";
+    const role = sessionStorage.getItem("userRole") || "admin";
     setUserRole(role);
     
     // Fetch entities based on role

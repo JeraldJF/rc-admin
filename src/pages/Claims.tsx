@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, ArrowUpDown, ArrowUp, ArrowDown, Trash2, Loader2, Download, ClipboardList } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Claim } from "@/data/claimsData";
+import { Claim } from "@/types/api";
 import { searchStudentByEmail, getStudentById, downloadStudentCertificate, requestClaim } from "@/lib/api";
 import {
   Table,
@@ -60,30 +60,30 @@ const Claims = () => {
   const fetchClaims = async () => {
     setIsLoadingClaims(true);
     try {
-      const userEmail = localStorage.getItem("userEmail") || "";
-      
+      const userEmail = sessionStorage.getItem("userEmail") || "";
+
       // Search student by email to get osid
       const searchResults = await searchStudentByEmail(userEmail);
-      
+
       // Handle search response - could be array or object with data property
       const studentsArray = Array.isArray(searchResults) ? searchResults : (searchResults.data || []);
-      
+
       if (!studentsArray || studentsArray.length === 0) {
         setClaims([]);
         return;
       }
-      
+
       const osid = studentsArray[0].osid;
-      
+
       // Store student osid in localStorage for later use
-      localStorage.setItem("studentOsid", osid);
-      
+      sessionStorage.setItem("studentOsid", osid);
+
       // Get student details including attestations
       const studentData = await getStudentById(osid);
-      
+
       // Parse studentInstituteAttest array
       const attestations = studentData.studentInstituteAttest || [];
-      
+
       const claimsData: Claim[] = attestations.map((attest: any) => ({
         id: attest.osid || attest._osAttestedId || `claim-${Date.now()}-${Math.random()}`,
         studentName: studentData.fullName || userEmail.split("@")[0],
@@ -94,7 +94,7 @@ const Claims = () => {
         status: attest._osState === "PUBLISHED" ? "approved" : "pending",
         attestationId: attest.osid,
       }));
-      
+
       setClaims(claimsData);
     } catch (error) {
       console.error("Error fetching claims:", error);
@@ -119,11 +119,11 @@ const Claims = () => {
     const statusOrder = { approved: 0, pending: 1, rejected: 2 };
     const statusA = statusOrder[a.status as keyof typeof statusOrder] ?? 3;
     const statusB = statusOrder[b.status as keyof typeof statusOrder] ?? 3;
-    
+
     if (statusA !== statusB) {
       return statusA - statusB;
     }
-    
+
     // Then sort by date within same status
     if (!sortOrder) return 0;
     const dateA = new Date(a.dateRequested).getTime();
@@ -148,10 +148,10 @@ const Claims = () => {
   const handleRequestClaim = () => {
     // Check if there's already a pending or approved claim for this institute
     const existingClaim = claims.find(
-      claim => claim.instituteName === "Royal University of Phnom Penh" && 
-      (claim.status === "pending" || claim.status === "approved")
+      claim => claim.instituteName === "Royal University of Phnom Penh" &&
+        (claim.status === "pending" || claim.status === "approved")
     );
-    
+
     if (existingClaim) {
       toast({
         title: t("toast.cannot_submit_request"),
@@ -160,7 +160,7 @@ const Claims = () => {
       });
       return;
     }
-    
+
     // Show confirmation dialog first
     setShowConfirmDialog(true);
   };
@@ -170,24 +170,24 @@ const Claims = () => {
     setShowRequestDialog(true);
     setIsLoading(true);
     setShowSuccess(false);
-    
+
     try {
       // Get student osid from localStorage
-      const studentOsid = localStorage.getItem("studentOsid") || "";
-      
+      const studentOsid = sessionStorage.getItem("studentOsid") || "";
+
       if (!studentOsid) {
         throw new Error("Student ID not found. Please login again.");
       }
-      
+
       // Call API to request claim
       await requestClaim(studentOsid);
-      
+
       setIsLoading(false);
       setShowSuccess(true);
-      
+
       // Refresh claims list to show the new claim
       await fetchClaims();
-      
+
       // Auto-close dialog after 2-3 seconds
       setTimeout(() => {
         setShowRequestDialog(false);
@@ -210,7 +210,7 @@ const Claims = () => {
       setIsDeleting(true);
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
       setClaims(prev => prev.filter(claim => claim.id !== deleteId));
       toast({
         title: t("toast.claim_deleted"),
@@ -225,28 +225,28 @@ const Claims = () => {
   const handleDownloadCertificate = async (claim: Claim) => {
     setDownloadingId(claim.id);
     try {
-      const userEmail = localStorage.getItem("userEmail") || "";
-      
+      const userEmail = sessionStorage.getItem("userEmail") || "";
+
       // Search student to get osid
       const searchResults = await searchStudentByEmail(userEmail);
-      
+
       // Handle search response - could be array or object with data property
       const studentsArray = Array.isArray(searchResults) ? searchResults : (searchResults.data || []);
-      
+
       if (!studentsArray || studentsArray.length === 0) {
         throw new Error("Student not found");
       }
-      
+
       const studentId = studentsArray[0].osid;
       const attestationName = "studentInstituteAttest";
       const attestationId = claim.attestationId || "";
-      
+
       if (!attestationId) {
         throw new Error("Attestation ID not found");
       }
-      
+
       const blob = await downloadStudentCertificate(studentId, attestationName, attestationId);
-      
+
       // Create download link
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -256,7 +256,7 @@ const Claims = () => {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-      
+
       toast({
         title: t("toast.certificate_downloaded"),
         description: t("toast.certificate_download_success"),
@@ -385,7 +385,7 @@ const Claims = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t("btn.cancel")}</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={handleConfirmRequest}
               className="bg-primary hover:bg-primary/90"
             >
@@ -446,8 +446,8 @@ const Claims = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>{t("btn.cancel")}</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleDelete} 
+            <AlertDialogAction
+              onClick={handleDelete}
               disabled={isDeleting}
               className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
             >

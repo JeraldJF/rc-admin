@@ -40,7 +40,7 @@ const ApprovedClaims = () => {
   const [isLoading, setIsLoading] = useState(false);
   
   useEffect(() => {
-    const role = localStorage.getItem("userRole") || "admin";
+    const role = sessionStorage.getItem("userRole") || "admin";
     
     // Fetch approved claims for teachers
     if (role === "teacher") {

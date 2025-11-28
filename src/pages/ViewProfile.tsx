@@ -71,8 +71,8 @@ const ViewProfile = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    const userEmail = localStorage.getItem("userEmail");
-    const role = localStorage.getItem("userRole") || "admin";
+    const userEmail = sessionStorage.getItem("userEmail");
+    const role = sessionStorage.getItem("userRole") || "admin";
     setUserRole(role);
     
     if (userEmail) {
@@ -102,7 +102,7 @@ const ViewProfile = () => {
       if (teachersArray && teachersArray.length > 0) {
         const teacherSummary = teachersArray[0];
         const osid = teacherSummary.osid;
-        localStorage.setItem("teacherOsid", osid);
+        sessionStorage.setItem("teacherOsid", osid);
         
         // Step 2: Get full teacher details by osid
         const teacherDetails: TeacherProfile = await getTeacherById(osid);
@@ -142,7 +142,7 @@ const ViewProfile = () => {
         const studentSummary = studentsArray[0];
         const osid = studentSummary.osid;
         setStudentId(osid);
-        localStorage.setItem("studentOsid", osid);
+        sessionStorage.setItem("studentOsid", osid);
         
         const studentDetails: StudentProfile = await getStudentById(osid);
         
@@ -303,7 +303,7 @@ const ViewProfile = () => {
                 variant: "default",
               });
               // Refresh profile to update claims list
-              const userEmail = localStorage.getItem("userEmail");
+              const userEmail = sessionStorage.getItem("userEmail");
               if (userEmail) {
                 await fetchStudentProfile(userEmail);
               }
@@ -324,12 +324,12 @@ const ViewProfile = () => {
           }
           
           // Refresh claims list
-          const userEmail = localStorage.getItem("userEmail") || "";
+          const userEmail = sessionStorage.getItem("userEmail") || "";
           await fetchStudentProfile(userEmail);
           setIsEditMode(false); // Exit edit mode after successful save
         } else if (userRole === "teacher") {
           // Update teacher profile
-          const teacherOsid = localStorage.getItem("teacherOsid") || "";
+          const teacherOsid = sessionStorage.getItem("teacherOsid") || "";
           if (teacherOsid) {
             await updateTeacher(teacherOsid, {
               name: formData.fullName,
@@ -368,8 +368,8 @@ const ViewProfile = () => {
 
   const handleCancel = () => {
     // Reload profile data to reset form
-    const userEmail = localStorage.getItem("userEmail");
-    const role = localStorage.getItem("userRole") || "admin";
+    const userEmail = sessionStorage.getItem("userEmail");
+    const role = sessionStorage.getItem("userRole") || "admin";
     if (userEmail) {
       if (role === "student") {
         fetchStudentProfile(userEmail);
@@ -398,7 +398,7 @@ const ViewProfile = () => {
       });
       
       // Refresh profile to update claims
-      const userEmail = localStorage.getItem("userEmail");
+      const userEmail = sessionStorage.getItem("userEmail");
       if (userEmail) {
         await fetchStudentProfile(userEmail);
       }
