@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Fingerprint, Loader2, Eye, EyeOff } from "lucide-react";
+import { Fingerprint, Loader2, Eye, EyeOff, BookOpen } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { loginApi, setAuthToken, searchStudentByEmail } from "@/lib/api";
 
@@ -208,6 +208,15 @@ const Login = () => {
                 "Sign In"
               )}
             </Button>
+
+            <div className="text-center mt-4">
+              <Link to="/documentation">
+                <Button type="button" variant="ghost" className="text-sm text-muted-foreground hover:text-primary gap-2">
+                  <BookOpen className="h-4 w-4" />
+                  Explore Schema Docs
+                </Button>
+              </Link>
+            </div>
           </form>
         </CardContent>
       </Card>

@@ -13,6 +13,7 @@ import ViewProfile from "./pages/ViewProfile";
 import Claims from "./pages/Claims";
 import PendingClaims from "./pages/PendingClaims";
 import ApprovedClaims from "./pages/ApprovedClaims";
+import DocumentationFull from "./pages/DocumentationFull";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +33,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/documentation" element={<DocumentationFull />} />
             <Route path="/registry" element={<ProtectedRoute><Registry /></ProtectedRoute>} />
             <Route path="/entity/new" element={<ProtectedRoute><AddEntity /></ProtectedRoute>} />
             <Route path="/entity/:id" element={<ProtectedRoute><ViewEntity /></ProtectedRoute>} />

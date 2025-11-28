@@ -1,0 +1,209 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "type": "object",
+  "properties": {
+    "Student": {
+      "$ref": "#/definitions/Student"
+    }
+  },
+  "required": [
+    "Student"
+  ],
+  "title": "Student",
+  "definitions": {
+    "Student": {
+      "$id": "#/properties/Student",
+      "type": "object",
+      "title": "Student",
+      "required": [
+        "fullName",
+        "dob",
+        "gender",
+        "mobile",
+        "email",
+        "instituteName"
+      ],
+      "properties": {
+        "fullName": {
+          "type": "string",
+          "title": "Full Name"
+        },
+        "instituteName": {
+          "type": "string",
+          "enum": [
+            "IIT Delhi",
+            "IIT Bombay",
+            "NIT Trichy",
+            "Delhi University",
+            "Anna University"
+          ]
+        },
+        "degree": {
+          "type": "string",
+          "enum": [
+            "B.Tech",
+            "M.Tech",
+            "B.Sc",
+            "M.Sc",
+            "MBA",
+            "PhD"
+          ]
+        },
+        "grade": {
+          "type": "string"
+        },
+        "dob": {
+          "type": "string",
+          "format": "date"
+        },
+        "gender": {
+          "type": "string",
+          "enum": [
+            "Male",
+            "Female",
+            "Other"
+          ]
+        },
+        "mobile": {
+          "type": "string",
+          "title": "Mobile number"
+        },
+        "email": {
+          "type": "string",
+          "title": "Email ID"
+        }
+      }
+    }
+  },
+  "_osConfig": {
+    "credentialTemplate": {
+      "@context": [
+        "https://www.w3.org/2018/credentials/v1",
+        {
+          "@context": {
+            "@version": 1.1,
+            "@protected": true,
+            "id": "@id",
+            "type": "@type",
+            "schema": "https://schema.org/",
+            "StudentCredential": {
+              "@id": "did:StudentCredential",
+              "@context": {
+                "@version": 1.1,
+                "@protected": true,
+                "id": "@id",
+                "type": "@type",
+                "fullName": "schema:Text",
+                "instituteName": "schema:Text",
+                "degree": "schema:Text",
+                "grade": "schema:Text"
+              }
+            }
+          }
+        }
+      ],
+      "type": [
+        "VerifiableCredential",
+        "StudentCredential"
+      ],
+      "issuer": "https://www.sunbirdrc.dev",
+      "credentialSubject": {
+        "id": "urn:{{email}}",
+        "type": "StudentCredential",
+        "fullName": "{{fullName}}",
+        "instituteName": "{{instituteName}}",
+        "degree": "{{degree}}",
+        "grade": "{{grade}}"
+      }
+    },
+    "osComment": [],
+    "privateFields": [
+      "$.email",
+      "$.mobile",
+      "$.dob",
+      "$.gender"
+    ],
+    "systemFields": [
+      "osCreatedAt",
+      "osCreatedBy",
+      "osUpdatedAt",
+      "osUpdatedBy",
+      "_osCredentialId",
+      "_osAttestedData"
+    ],
+    "indexFields": [],
+    "uniqueIndexFields": [
+      "email"
+    ],
+    "roles": [
+      "Teacher"
+    ],
+    "inviteRoles": [
+      "Teacher"
+    ],
+    "attestationPolicies": [
+      {
+        "name": "studentInstituteAttest",
+        "attestationProperties": {
+          "fullName": "$.fullName",
+          "email": "$.email",
+          "instituteName": "$.instituteName",
+          "degree": "$.degree",
+          "grade": "$.grade"
+        },
+        "type": "MANUAL",
+        "attestorPlugin": "did:internal:ClaimPluginActor?entity=Teacher",
+        "conditions": "(ATTESTOR#$.instituteName#.equalsIgnoreCase(REQUESTER#$.instituteName#))",
+        "credentialTemplate": {
+          "@context": [
+            "https://www.w3.org/2018/credentials/v1",
+            {
+              "@context": {
+                "@version": 1.1,
+                "@protected": true,
+                "id": "@id",
+                "type": "@type",
+                "schema": "https://schema.org/",
+                "StudentCredential": {
+                  "@id": "did:StudentCredential",
+                  "@context": {
+                    "@version": 1.1,
+                    "@protected": true,
+                    "id": "@id",
+                    "type": "@type",
+                    "fullName": "schema:Text",
+                    "email": "schema:Text",
+                    "instituteName": "schema:Text",
+                    "degree": "schema:Text",
+                    "grade": "schema:Text"
+                  }
+                }
+              }
+            }
+          ],
+          "type": [
+            "VerifiableCredential",
+            "StudentCredential"
+          ],
+          "issuer": "https://www.sunbirdrc.dev",
+          "credentialSubject": {
+            "id": "urn:{{email}}",
+            "type": "StudentCredential",
+            "fullName": "{{fullName}}",
+            "email": "{{email}}",
+            "instituteName": "{{instituteName}}",
+            "degree": "{{degree}}",
+            "grade": "{{grade}}"
+          }
+        }
+      }
+    ],
+    "ownershipAttributes": [
+      {
+        "userId": "$.email",
+        "email": "$.email",
+        "mobile": "$.mobile"
+      }
+    ]
+  }
+}

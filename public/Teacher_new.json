@@ -1,0 +1,74 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "type": "object",
+    "properties": {
+      "Teacher": {
+        "$ref": "#/definitions/Teacher"
+      }
+    },
+    "required": [
+      "Teacher"
+    ],
+    "title": "Teacher",
+    "definitions": {
+      "Teacher": {
+        "$id": "#/properties/Teacher",
+        "type": "object",
+        "title": "The Teacher Schema",
+        "required": [
+          "name",
+          "mobile",
+          "email",
+          "subject",
+          "instituteName"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "gender": {
+            "type": "string"
+          },
+          "mobile": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "instituteName": {
+            "type": "string",
+            "enum": [
+              "IIT Delhi",
+              "IIT Bombay",
+              "NIT Trichy",
+              "Delhi University",
+              "Anna University"
+            ]
+          }
+        }
+      }
+    },
+    "_osConfig": {
+      "systemFields": [
+        "osCreatedAt",
+        "osUpdatedAt",
+        "osCreatedBy",
+        "osUpdatedBy"
+      ],
+      "uniqueIndexFields": ["email", "mobile"],
+      "privateFields": ["$.instituteName", "$.email", "$.mobile", "$.gender"],
+      "roles": ["admin"],
+      "inviteRoles": ["admin"],
+      "ownershipAttributes": [
+        {
+          "email": "/email",
+          "mobile": "/mobile",
+          "userId": "/mobile"
+        }
+      ]
+    }
+  }
+  
