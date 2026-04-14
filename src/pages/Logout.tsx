@@ -9,26 +9,36 @@ export default function Logout() {
   const logoutChallenge = searchParams.get('logout_challenge');
 
   useEffect(() => {
-    if (!logoutChallenge) {
+    const performLogout = async () => {
+      // Step 1: Clear all local session data immediately
+      sessionStorage.clear();
+      localStorage.clear();
+
+      // Step 2: If we have a logout challenge from Hydra, accept it
+      if (logoutChallenge) {
+        try {
+          const response = await fetch(
+            `${HYDRA_ADMIN}/admin/oauth2/auth/requests/logout/accept?logout_challenge=${logoutChallenge}`,
+            { method: 'PUT' }
+          );
+          
+          if (response.ok) {
+            const data = await response.json();
+            // Hydra returns a redirect_to URL after accepting logout
+            if (data.redirect_to) {
+              window.location.href = data.redirect_to;
+              return;
+            }
+          }
+        } catch (error) {
+          console.error('Error accepting logout challenge:', error);
+        }
+      }
+
       window.location.href = '/login';
-      return;
-    }
+    };
 
-    // Step 1: clear all local session data immediately
-    sessionStorage.clear();
-
-    // Step 2: accept the Hydra logout challenge (invalidates Hydra tokens)
-    fetch(
-      `${HYDRA_ADMIN}/admin/oauth2/auth/requests/logout/accept?logout_challenge=${logoutChallenge}`,
-      { method: 'PUT' }
-    )
-      .then(() => {
-        // Step 3: go directly to the React login page
-        window.location.href = '/login';
-      })
-      .catch(() => {
-        window.location.href = '/login';
-      });
+    performLogout();
   }, [logoutChallenge]);
 
   return (

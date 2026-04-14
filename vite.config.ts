@@ -70,6 +70,15 @@ export default defineConfig(({ mode }) => ({
         changeOrigin: true,
         secure: false,
         rewrite: (path) => path.replace(/^\/credential/, ''),
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq, req) => {
+            // Forward templateId header (camelCase)
+            const templateId = req.headers['templateid'];
+            if (templateId) {
+              proxyReq.setHeader('templateId', templateId as string);
+            }
+          });
+        },
       },
     },
   },

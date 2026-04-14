@@ -20,21 +20,10 @@ export const Sidebar = () => {
       description: "Ending your session...",
     });
 
-    // Read id_token before clearing storage (needed for Hydra OIDC logout)
-    const idToken = sessionStorage.getItem('id_token');
-
+    // Clear session data and redirect to login
     localStorage.clear();
     sessionStorage.clear();
-
-    const postLogoutUri = encodeURIComponent(window.location.origin + '/login');
-    const hydraPublic = import.meta.env.VITE_ORY_HYDRA_PUBLIC || 'http://localhost:4444';
-
-    if (idToken) {
-      // Proper OIDC logout — invalidates Hydra session and all tokens
-      window.location.href = `${hydraPublic}/oauth2/sessions/logout?id_token_hint=${idToken}&post_logout_redirect_uri=${postLogoutUri}`;
-    } else {
-      window.location.href = '/login';
-    }
+    window.location.href = '/login';
   };
 
   return (
