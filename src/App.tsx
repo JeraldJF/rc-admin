@@ -6,48 +6,87 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import Login from "./pages/Login";
 import Registry from "./pages/Registry";
-import ViewEntity from "./pages/ViewEntity";
-import EditEntity from "./pages/EditEntity";
 import AddEntity from "./pages/AddEntity";
 import ViewProfile from "./pages/ViewProfile";
-import Claims from "./pages/Claims";
-import PendingClaims from "./pages/PendingClaims";
-import ApprovedClaims from "./pages/ApprovedClaims";
-import DocumentationFull from "./pages/DocumentationFull";
 import NotFound from "./pages/NotFound";
+import Callback from "./pages/Callback";
+import Consent from "./pages/Consent";
+import Logout from "./pages/Logout";
+import Settings from "./pages/Settings";
 
-const queryClient = new QueryClient();
-
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
-  return isLoggedIn ? <>{children}</> : <Navigate to="/login" replace />;
+const ExternalRedirect = ({ to }: { to: string }) => {
+  const search = window.location.search; // preserve ?flow=... and any other params
+  window.location.replace(to + search);
+  return null;
 };
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <LanguageProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Navigate to="/login" replace />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/documentation" element={<DocumentationFull />} />
-            <Route path="/registry" element={<ProtectedRoute><Registry /></ProtectedRoute>} />
-            <Route path="/entity/new" element={<ProtectedRoute><AddEntity /></ProtectedRoute>} />
-            <Route path="/entity/:id" element={<ProtectedRoute><ViewEntity /></ProtectedRoute>} />
-            <Route path="/entity/:id/edit" element={<ProtectedRoute><EditEntity /></ProtectedRoute>} />
-            <Route path="/profile" element={<ProtectedRoute><ViewProfile /></ProtectedRoute>} />
-            <Route path="/claims" element={<ProtectedRoute><Claims /></ProtectedRoute>} />
-            <Route path="/pending-claims" element={<ProtectedRoute><PendingClaims /></ProtectedRoute>} />
-            <Route path="/approved-claims" element={<ProtectedRoute><ApprovedClaims /></ProtectedRoute>} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </LanguageProvider>
-  </QueryClientProvider>
-);
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false, // Prevent re-fetching when window regains focus
+      retry: false,
+      staleTime: 5000,
+    },
+  },
+});
+
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const isLoggedIn = sessionStorage.getItem("isLoggedIn") === "true";
+  if (!isLoggedIn) return <Navigate to="/login" replace />;
+
+  // Validate JWT role is an array — old tokens (pre-fix) had role as a string which
+  // causes the registry to return 403 (CustomJwtAuthenticationConverter casts to ArrayList).
+  const token = sessionStorage.getItem("accessToken");
+  if (token) {
+    try {
+      const parts = token.split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+        if (payload.role !== undefined && !Array.isArray(payload.role)) {
+          sessionStorage.clear();
+          return <Navigate to="/login" replace />;
+        }
+      }
+    } catch { /* malformed token — let the API call fail naturally */ }
+  }
+
+  return <>{children}</>;
+};
+
+const App = () => {
+  const RootRedirect = () => {
+    const isLoggedIn = sessionStorage.getItem("isLoggedIn") === "true";
+    return <Navigate to={isLoggedIn ? "/registry" : "/login"} replace />;
+  };
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <LanguageProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<RootRedirect />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/registry" element={<ProtectedRoute><Registry /></ProtectedRoute>} />
+              <Route path="/entity/new" element={<ProtectedRoute><AddEntity /></ProtectedRoute>} />
+              <Route path="/profile" element={<ProtectedRoute><ViewProfile /></ProtectedRoute>} />
+              <Route path="/callback" element={<Callback />} />
+              <Route path="/consent" element={<Consent />} />
+              <Route path="/logout" element={<Logout />} />
+              <Route path="/registration" element={<Navigate to="/login" replace />} />
+              <Route path="/verification" element={<Navigate to="/login" replace />} />
+              <Route path="/recovery" element={<ExternalRedirect to="https://cuenta.digital.gob.do/ui/recovery" />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/error" element={<Navigate to="/login" replace />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </LanguageProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;

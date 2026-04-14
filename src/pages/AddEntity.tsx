@@ -4,7 +4,6 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, CalendarIcon, Save, Loader2, Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -13,8 +12,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { addStudent, addTeacher } from "@/lib/api";
-import { Badge } from "@/components/ui/badge";
+import { addEmployee } from "@/lib/employeeApi";
 
 const FormField = ({ children }: { children: React.ReactNode }) => (
   <div className="space-y-2.5">{children}</div>
@@ -24,55 +22,37 @@ const AddEntity = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { t } = useLanguage();
-  const [userRole, setUserRole] = useState<string>("admin");
   const [isSaving, setIsSaving] = useState(false);
-  
+
   const [formData, setFormData] = useState({
     gender: "Male",
     fullName: "",
-    name: "",
     mobile: "",
     email: "",
     instituteName: "",
     dob: "",
-    subject: "", // For teachers
-    degree: "", // For students
-    grade: "", // For students
+    degree: "",
+    grade: "",
+    personalIdentification: "",
+    typeIdentification: "",
+    positionName: "",
+    departmentName: "",
+    companyName: "",
+    salary: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    const role = localStorage.getItem("userRole") || "admin";
-    setUserRole(role);
-  }, []);
-
   const validateField = (fieldName: string, value: string) => {
-    if (fieldName === "dob" && !value) return t("validation.dob_required");
-    if (fieldName === "gender" && !value) return t("validation.gender_required");
-    if (fieldName === "mobile" && !value) return t("validation.mobile_required");
-    if (fieldName === "email" && !value) return t("validation.email_required");
-    if (fieldName === "instituteName" && !value) return t("validation.institute_required");
-    if (fieldName === "name" && !value && userRole === "admin") return t("validation.name_required");
-    if (fieldName === "fullName" && !value && userRole === "teacher") return t("validation.full_name_required");
+    if (fieldName === "dob" && !value) return "Admission date is required";
+    if (fieldName === "fullName" && !value) return "Full name is required";
     return "";
   };
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    
-    if (!formData.dob) newErrors.dob = t("validation.dob_required");
-    if (!formData.gender) newErrors.gender = t("validation.gender_required");
-    if (!formData.mobile) newErrors.mobile = t("validation.mobile_required");
-    if (!formData.email) newErrors.email = t("validation.email_required");
-    if (!formData.instituteName) newErrors.instituteName = t("validation.institute_required");
 
-    if (userRole === "admin") {
-      // Adding teacher
-      if (!formData.name) newErrors.name = t("validation.name_required");
-    } else {
-      // Adding student
-      if (!formData.fullName) newErrors.fullName = t("validation.full_name_required");
-    }
+    if (!formData.dob) newErrors.dob = "Admission date is required";
+    if (!formData.fullName) newErrors.fullName = "Full name is required";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -80,48 +60,35 @@ const AddEntity = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (validateForm()) {
       setIsSaving(true);
       try {
-        if (userRole === "admin") {
-          // Add Teacher
-          await addTeacher({
-            name: formData.name,
-            mobile: formData.mobile,
-            email: formData.email,
-            subject: formData.subject || "",
-            instituteName: formData.instituteName,
-            gender: formData.gender,
-          });
-          toast({
-            title: "✅ " + t("toast.teacher_added"),
-            description: t("toast.teacher_added_desc"),
-            variant: "success",
-          });
-        } else {
-          // Add Student
-          await addStudent({
-            fullName: formData.fullName,
-            dob: formData.dob,
-            gender: formData.gender,
-            mobile: formData.mobile,
-            email: formData.email,
-            instituteName: formData.instituteName,
-            degree: formData.degree,
-            grade: formData.grade,
-          });
-          toast({
-            title: "✅ " + t("toast.student_added"),
-            description: t("toast.student_added_desc"),
-            variant: "success",
-          });
-        }
+        // Add Employee (flat schema)
+        await addEmployee({
+          fullName: formData.fullName,
+          email: formData.email || `${formData.personalIdentification || Date.now()}@rc.local`,
+          ...(formData.personalIdentification && { personalIdentification: formData.personalIdentification }),
+          ...(formData.typeIdentification && { typeIdentification: formData.typeIdentification }),
+          mobile: formData.mobile || "",
+          role: 'employee',
+          admissionDate: formData.dob,
+          ...(formData.positionName && { positionName: formData.positionName }),
+          ...(formData.departmentName && { departmentName: formData.departmentName }),
+          ...(formData.companyName && { companyName: formData.companyName }),
+          ...(formData.salary && { salary: formData.salary }),
+        });
+
+        toast({
+          title: "✅ Employee Added",
+          description: "New employee record created successfully.",
+          variant: "success",
+        });
         navigate("/registry");
       } catch (error) {
         toast({
-          title: "❌ " + t("toast.failed_add"),
-          description: error instanceof Error ? error.message : t("toast.failed_add_desc"),
+          title: "❌ Failed to add employee",
+          description: error instanceof Error ? error.message : "Could not add employee",
           variant: "destructive",
         });
       } finally {
@@ -134,8 +101,7 @@ const AddEntity = () => {
     navigate("/registry");
   };
 
-  const pageTitle = userRole === "admin" ? t("heading.add_teacher") : t("heading.add_student");
-  const isTeacher = userRole === "admin";
+  const pageTitle = "Add Employee";
 
   return (
     <DashboardLayout>
@@ -148,237 +114,199 @@ const AddEntity = () => {
           <div className="h-6 w-px bg-border"></div>
           <h1 className="text-2xl font-bold text-foreground">{pageTitle}</h1>
         </div>
-        
+
         <form onSubmit={handleSubmit} className="space-y-6">
-          <Card className="bg-card shadow-lg border-border rounded-xl overflow-hidden">
-            <CardContent className="pt-8 px-8 pb-8 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField>
-                  <Label htmlFor={isTeacher ? "name" : "fullName"} className="text-sm font-semibold text-foreground">
-                    {isTeacher ? t("form.name") : t("form.full_name")} <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id={isTeacher ? "name" : "fullName"}
-                    value={isTeacher ? formData.name : formData.fullName}
-                    onChange={(e) => {
-                      const fieldName = isTeacher ? "name" : "fullName";
-                      setFormData({ ...formData, [fieldName]: e.target.value });
-                      const error = validateField(fieldName, e.target.value);
-                      setErrors(prev => ({ ...prev, [fieldName]: error || undefined }));
-                    }}
-                    className={`rounded-lg h-11 ${(isTeacher ? errors.name : errors.fullName) ? "border-destructive ring-2 ring-destructive/20" : ""}`}
-                    placeholder={isTeacher ? t("form.enter_name") : t("form.enter_full_name")}
-                  />
-                  {(isTeacher ? errors.name : errors.fullName) && (
-                    <p className="text-sm font-medium text-destructive">{isTeacher ? errors.name : errors.fullName}</p>
-                  )}
-                </FormField>
-                <FormField>
-                  <Label htmlFor="gender" className="text-sm font-semibold text-foreground">
-                    {t("form.gender")} <span className="text-destructive">*</span>
-                  </Label>
-                  <Select
-                    value={formData.gender}
-                    onValueChange={(value) => {
-                      setFormData({ ...formData, gender: value });
-                      const error = validateField("gender", value);
-                      setErrors(prev => ({ ...prev, gender: error || undefined }));
-                    }}
-                  >
-                    <SelectTrigger className={`rounded-lg h-11 ${errors.gender ? "border-destructive ring-2 ring-destructive/20" : ""}`}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-popover">
-                      <SelectItem value="Male">{t("form.male")}</SelectItem>
-                      <SelectItem value="Female">{t("form.female")}</SelectItem>
-                      <SelectItem value="Other">{t("form.other")}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {errors.gender && <p className="text-sm font-medium text-destructive">{errors.gender}</p>}
-                </FormField>
-              </div>
+          <Card className="bg-gradient-to-br from-card via-card to-muted/20 shadow-xl border-border rounded-2xl overflow-hidden">
+            <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-8 py-6 border-b border-border/50">
+              <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                <Shield className="h-5 w-5 text-primary" />
+                Employee Information
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Enter the employee details below
+              </p>
+            </div>
+            <CardContent className="pt-8 px-8 pb-8 space-y-8">
+              {/* Personal Information Section */}
+              <div className="space-y-6">
+                <div className="flex items-center gap-2 pb-2 border-b border-border/50">
+                  <div className="h-2 w-2 rounded-full bg-primary"></div>
+                  <h3 className="text-sm font-bold text-foreground uppercase tracking-wide">Personal Details</h3>
+                </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField>
-                  <Label className="text-sm font-semibold text-foreground">
-                    {t("form.date_of_birth")} <span className="text-destructive">*</span>
-                  </Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal rounded-lg h-11",
-                          !formData.dob && "text-muted-foreground",
-                          errors.dob ? "border-destructive ring-2 ring-destructive/20" : ""
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {formData.dob ? format(new Date(formData.dob), "PPP") : t("form.pick_date")}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 bg-popover" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={formData.dob ? new Date(formData.dob) : undefined}
-                        onSelect={(date) => {
-                          const value = date ? format(date, "yyyy-MM-dd") : "";
-                          setFormData({ ...formData, dob: value });
-                          const error = validateField("dob", value);
-                          setErrors(prev => ({ ...prev, dob: error || undefined }));
-                        }}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  {errors.dob && <p className="text-sm font-medium text-destructive">{errors.dob}</p>}
-                </FormField>
-                <FormField>
-                  <Label htmlFor="instituteName" className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    {t("form.institute_name")} <span className="text-destructive">*</span>
-                    <Badge variant="secondary" className="text-xs gap-1"><Shield className="h-3 w-3" />Attestable</Badge>
-                  </Label>
-                  <Select
-                    value={formData.instituteName}
-                    onValueChange={(value) => {
-                      setFormData({ ...formData, instituteName: value });
-                      const error = validateField("instituteName", value);
-                      setErrors(prev => ({ ...prev, instituteName: error || undefined }));
-                    }}
-                  >
-                    <SelectTrigger className={`rounded-lg h-11 ${errors.instituteName ? "border-destructive ring-2 ring-destructive/20" : ""}`}>
-                      <SelectValue placeholder={isTeacher ? t("form.select_institute") : t("form.select_institute")} />
-                    </SelectTrigger>
-                    <SelectContent className="bg-popover">
-                      <SelectItem value="IIT Delhi">IIT Delhi</SelectItem>
-                      <SelectItem value="IIT Bombay">IIT Bombay</SelectItem>
-                      <SelectItem value="NIT Trichy">NIT Trichy</SelectItem>
-                      <SelectItem value="Delhi University">Delhi University</SelectItem>
-                      <SelectItem value="Anna University">Anna University</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {errors.instituteName && <p className="text-sm font-medium text-destructive">{errors.instituteName}</p>}
-                </FormField>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField>
-                  <Label htmlFor="mobile" className="text-sm font-semibold text-foreground">
-                    {t("form.mobile")} <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="mobile"
-                    type="tel"
-                    value={formData.mobile}
-                    onChange={(e) => {
-                      setFormData({ ...formData, mobile: e.target.value });
-                      const error = validateField("mobile", e.target.value);
-                      setErrors(prev => ({ ...prev, mobile: error || undefined }));
-                    }}
-                    className={`rounded-lg h-11 ${errors.mobile ? "border-destructive ring-2 ring-destructive/20" : ""}`}
-                    placeholder={t("form.enter_mobile")}
-                  />
-                  {errors.mobile && <p className="text-sm font-medium text-destructive">{errors.mobile}</p>}
-                </FormField>
-                <FormField>
-                  <Label htmlFor="email" className="text-sm font-semibold text-foreground">
-                    {t("form.email")} <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => {
-                      setFormData({ ...formData, email: e.target.value });
-                      const error = validateField("email", e.target.value);
-                      setErrors(prev => ({ ...prev, email: error || undefined }));
-                    }}
-                    className={`rounded-lg h-11 ${errors.email ? "border-destructive ring-2 ring-destructive/20" : ""}`}
-                    placeholder={t("form.enter_email")}
-                  />
-                  {errors.email && <p className="text-sm font-medium text-destructive">{errors.email}</p>}
-                </FormField>
-              </div>
-
-              {/* Degree and Grade fields - only for students (Optional) */}
-              {!isTeacher && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 gap-6">
                   <FormField>
-                    <Label htmlFor="degree" className="text-sm font-semibold text-foreground flex items-center gap-2">
-                      {t("form.degree")} <span className="text-muted-foreground text-xs">(Optional)</span>
-                      <Badge variant="secondary" className="text-xs gap-1"><Shield className="h-3 w-3" />Attestable</Badge>
-                    </Label>
-                    <Select
-                      value={formData.degree}
-                      onValueChange={(value) => {
-                        setFormData({ ...formData, degree: value });
-                      }}
-                    >
-                      <SelectTrigger className="rounded-lg h-11">
-                        <SelectValue placeholder={t("form.select_degree")} />
-                      </SelectTrigger>
-                      <SelectContent className="bg-popover">
-                        <SelectItem value="B.Tech">B.Tech</SelectItem>
-                        <SelectItem value="M.Tech">M.Tech</SelectItem>
-                        <SelectItem value="B.Sc">B.Sc</SelectItem>
-                        <SelectItem value="M.Sc">M.Sc</SelectItem>
-                        <SelectItem value="MBA">MBA</SelectItem>
-                        <SelectItem value="PhD">PhD</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </FormField>
-                  <FormField>
-                    <Label htmlFor="grade" className="text-sm font-semibold text-foreground flex items-center gap-2">
-                      {t("form.grade")} <span className="text-muted-foreground text-xs">(Optional)</span>
-                      <Badge variant="secondary" className="text-xs gap-1"><Shield className="h-3 w-3" />Attestable</Badge>
+                    <Label htmlFor="fullName" className="text-sm font-semibold text-foreground">
+                      Full Name <span className="text-destructive">*</span>
                     </Label>
                     <Input
-                      id="grade"
-                      value={formData.grade}
+                      id="fullName"
+                      value={formData.fullName}
                       onChange={(e) => {
-                        setFormData({ ...formData, grade: e.target.value });
+                        setFormData({ ...formData, fullName: e.target.value });
+                        const error = validateField("fullName", e.target.value);
+                        setErrors(prev => ({ ...prev, fullName: error || undefined }));
                       }}
-                      className="rounded-lg h-11"
-                      placeholder={t("form.enter_grade")}
+                      className={`rounded-lg h-12 text-base ${errors.fullName ? "border-destructive ring-2 ring-destructive/20" : "border-border/60 focus:border-primary"}`}
+                      placeholder="Enter full name"
                     />
+                    {errors.fullName && (
+                      <p className="text-sm font-medium text-destructive flex items-center gap-1">
+                        <span className="text-xs">⚠</span> {errors.fullName}
+                      </p>
+                    )}
+                  </FormField>
+
+                  <FormField>
+                    <Label className="text-sm font-semibold text-foreground">
+                      Admission Date <span className="text-destructive">*</span>
+                    </Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal rounded-lg h-12 text-base",
+                            !formData.dob && "text-muted-foreground",
+                            errors.dob ? "border-destructive ring-2 ring-destructive/20" : "border-border/60 hover:border-primary"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-5 w-5" />
+                          {formData.dob ? format(new Date(formData.dob), "MMMM dd, yyyy") : "Select admission date"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0 bg-popover shadow-xl border-border rounded-xl" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={formData.dob ? new Date(formData.dob) : undefined}
+                          onSelect={(date) => {
+                            const value = date ? format(date, "yyyy-MM-dd") : "";
+                            setFormData({ ...formData, dob: value });
+                            const error = validateField("dob", value);
+                            setErrors(prev => ({ ...prev, dob: error || undefined }));
+                          }}
+                          initialFocus
+                          className="rounded-xl"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    {errors.dob && (
+                      <p className="text-sm font-medium text-destructive flex items-center gap-1">
+                        <span className="text-xs">⚠</span> {errors.dob}
+                      </p>
+                    )}
                   </FormField>
                 </div>
-              )}
+              </div>
 
-              {/* Subject field - only for teachers (admin adding teacher) */}
-              {isTeacher && (
-                <FormField>
-                  <Label htmlFor="subject" className="text-sm font-semibold text-foreground">
-                    {t("form.subject")}
-                  </Label>
-                  <Input
-                    id="subject"
-                    value={formData.subject}
-                    onChange={(e) => {
-                      setFormData({ ...formData, subject: e.target.value });
-                    }}
-                    className="rounded-lg h-11"
-                    placeholder={t("form.select_subject")}
-                  />
-                </FormField>
+              {/* Employment Details */}
+              {(
+                <div className="space-y-6">
+                  <div className="flex items-center gap-2 pb-2 border-b border-border/50">
+                    <div className="h-2 w-2 rounded-full bg-primary"></div>
+                    <h3 className="text-sm font-bold text-foreground uppercase tracking-wide">Employment Details</h3>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <FormField>
+                      <Label htmlFor="personalIdentification" className="text-sm font-semibold text-foreground">
+                        Personal ID (Cédula)
+                      </Label>
+                      <Input
+                        id="personalIdentification"
+                        value={formData.personalIdentification}
+                        onChange={(e) => setFormData({ ...formData, personalIdentification: e.target.value })}
+                        className="rounded-lg h-12 text-base border-border/60 focus:border-primary"
+                        placeholder="e.g. 40225928239"
+                      />
+                    </FormField>
+                    <FormField>
+                      <Label htmlFor="typeIdentification" className="text-sm font-semibold text-foreground">
+                        Document Type
+                      </Label>
+                      <Input
+                        id="typeIdentification"
+                        value={formData.typeIdentification}
+                        onChange={(e) => setFormData({ ...formData, typeIdentification: e.target.value })}
+                        className="rounded-lg h-12 text-base border-border/60 focus:border-primary"
+                        placeholder="e.g. Cédula"
+                      />
+                    </FormField>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <FormField>
+                      <Label htmlFor="positionName" className="text-sm font-semibold text-foreground">
+                        Position / Cargo
+                      </Label>
+                      <Input
+                        id="positionName"
+                        value={formData.positionName}
+                        onChange={(e) => setFormData({ ...formData, positionName: e.target.value })}
+                        className="rounded-lg h-12 text-base border-border/60 focus:border-primary"
+                        placeholder="e.g. ANALISTA II"
+                      />
+                    </FormField>
+                    <FormField>
+                      <Label htmlFor="departmentName" className="text-sm font-semibold text-foreground">
+                        Department / Unidad Organizativa
+                      </Label>
+                      <Input
+                        id="departmentName"
+                        value={formData.departmentName}
+                        onChange={(e) => setFormData({ ...formData, departmentName: e.target.value })}
+                        className="rounded-lg h-12 text-base border-border/60 focus:border-primary"
+                        placeholder="e.g. DIRECCION ADMINISTRATIVA"
+                      />
+                    </FormField>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <FormField>
+                      <Label htmlFor="companyName" className="text-sm font-semibold text-foreground">
+                        Institution / Institución
+                      </Label>
+                      <Input
+                        id="companyName"
+                        value={formData.companyName}
+                        onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                        className="rounded-lg h-12 text-base border-border/60 focus:border-primary"
+                        placeholder="e.g. Ministerio de Administración Pública"
+                      />
+                    </FormField>
+                    <FormField>
+                      <Label htmlFor="salary" className="text-sm font-semibold text-foreground">
+                        Salary / Salario
+                      </Label>
+                      <Input
+                        id="salary"
+                        type="number"
+                        value={formData.salary}
+                        onChange={(e) => setFormData({ ...formData, salary: e.target.value })}
+                        className="rounded-lg h-12 text-base border-border/60 focus:border-primary"
+                        placeholder="e.g. 60000"
+                      />
+                    </FormField>
+                  </div>
+                </div>
               )}
             </CardContent>
           </Card>
 
-          <div className="flex justify-end gap-4">
-            <Button type="button" variant="outline" onClick={handleCancel} className="rounded-lg px-6">
+          <div className="flex justify-end gap-4 pb-8">
+            <Button type="button" variant="outline" onClick={handleCancel} className="rounded-lg px-8 h-12 font-semibold border-2 hover:bg-muted">
               {t("btn.cancel")}
             </Button>
-            <Button type="submit" disabled={isSaving} className="rounded-lg px-8 bg-primary hover:bg-primary/90 gap-2">
+            <Button type="submit" disabled={isSaving} className="rounded-lg px-10 h-12 bg-primary hover:bg-primary/90 gap-2 font-semibold shadow-lg hover:shadow-xl transition-all">
               {isSaving ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-5 w-5 animate-spin" />
                   {t("action.saving")}
                 </>
               ) : (
                 <>
-                  <Save className="h-4 w-4" />
-                  {t("btn.save")} {isTeacher ? t("login.teacher") : t("login.student")}
+                  <Save className="h-5 w-5" />
+                  Add Employee
                 </>
               )}
             </Button>
