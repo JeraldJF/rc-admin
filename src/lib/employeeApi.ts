@@ -196,11 +196,12 @@ export const addEmployee = async (employeeData: {
     return data;
 };
 
-// Credential service config — verified working 2026-03-11
-const ISSUER_DID = "did:web:nisargabd.github.io:test_rc:f071dd76-cbad-45e7-b5c3-1c6f229ce853";
-const SCHEMA_ID = "did:schema:c8e1f31a-c87a-4c23-b811-c216dc2e8fb6";
-const SCHEMA_VERSION = "1.0.0";
-const TEMPLATE_ID = "cmmlp0ejz0000qt408zo3ohww";
+// Credential service config — sourced from Vite environment variables
+// Required env vars: VITE_ISSUER_DID, VITE_SCHEMA_ID, VITE_SCHEMA_VERSION, VITE_TEMPLATE_ID
+const ISSUER_DID: string = (import.meta.env.VITE_ISSUER_DID as string) || "";
+const SCHEMA_ID: string = (import.meta.env.VITE_SCHEMA_ID as string) || "";
+const SCHEMA_VERSION: string = (import.meta.env.VITE_SCHEMA_VERSION as string) || "";
+const TEMPLATE_ID: string = (import.meta.env.VITE_TEMPLATE_ID as string) || "";
 // JSON-LD context required for Ed25519 signing — fields must map to absolute IRIs
 const VC_CONTEXT = [
     "https://www.w3.org/2018/credentials/v1",
