@@ -1,31 +1,40 @@
-import { Database, LogOut, ClipboardList, CheckCircle, User, Clock } from "lucide-react";
+import { Database, LogOut, User } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
-import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 export const Sidebar = () => {
-  const navigate = useNavigate();
   const { toast } = useToast();
   const [userRole, setUserRole] = useState<string>("");
   const { t } = useLanguage();
 
   useEffect(() => {
-    const role = localStorage.getItem("userRole") || "admin";
+    const role = sessionStorage.getItem("userRole") || "admin";
     setUserRole(role);
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem("isLoggedIn");
-    localStorage.removeItem("userEmail");
-    localStorage.removeItem("userRole");
     toast({
-      title: "👋 " + t("nav.logout"),
-      description: t("msg.logged_out"),
-      variant: "error",
+      title: "Logging out...",
+      description: "Ending your session...",
     });
-    navigate("/login");
+
+    // Read id_token before clearing storage (needed for Hydra OIDC logout)
+    const idToken = sessionStorage.getItem('id_token');
+
+    localStorage.clear();
+    sessionStorage.clear();
+
+    const postLogoutUri = encodeURIComponent(window.location.origin + '/login');
+    const hydraPublic = import.meta.env.VITE_ORY_HYDRA_PUBLIC || 'http://localhost:4444';
+
+    if (idToken) {
+      // Proper OIDC logout — invalidates Hydra session and all tokens
+      window.location.href = `${hydraPublic}/oauth2/sessions/logout?id_token_hint=${idToken}&post_logout_redirect_uri=${postLogoutUri}`;
+    } else {
+      window.location.href = '/login';
+    }
   };
 
   return (
@@ -42,55 +51,26 @@ export const Sidebar = () => {
           </div>
         </div>
       </div>
-      
-      <nav className="flex-1 py-4 px-3 overflow-y-auto space-y-2">
-        {userRole === "student" ? (
-          <>
-            <NavLink
-              to="/profile"
-              className="relative flex items-center gap-3 px-3.5 py-3 rounded-lg text-foreground/75 font-medium border border-transparent hover:border-primary/30 hover:bg-primary/10 hover:text-primary transition-all duration-200 group"
-            activeClassName="bg-primary/15 text-primary font-semibold border border-primary/40 shadow-sm before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-6 before:w-1.5 before:rounded-full before:bg-primary"
-            >
-              <User className="h-5 w-5 text-info/80 group-hover:text-info transition-colors" />
-              <span>{t("profile.my_profile")}</span>
-            </NavLink>
-          </>
 
-        ) : userRole === "teacher" ? (
-          <>
-            <NavLink
-              to="/registry"
-              className="relative flex items-center gap-3 px-3.5 py-3 rounded-lg text-foreground/75 font-medium border border-transparent hover:border-primary/30 hover:bg-primary/10 hover:text-primary transition-all duration-200 group"
-              activeClassName="bg-primary/15 text-primary font-semibold border border-primary/40 shadow-sm before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-6 before:w-1.5 before:rounded-full before:bg-primary"
-            >
-              <Database className="h-5 w-5 text-primary/80 group-hover:text-primary transition-colors" />
-              <span>{t("nav.students_list")}</span>
-            </NavLink>
-            <NavLink
-              to="/pending-claims"
-             className="relative flex items-center gap-3 px-3.5 py-3 rounded-lg text-foreground/75 font-medium border border-transparent hover:border-primary/30 hover:bg-primary/10 hover:text-primary transition-all duration-200 group"
-              activeClassName="bg-primary/15 text-primary font-semibold border border-primary/40 shadow-sm before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-6 before:w-1.5 before:rounded-full before:bg-primary"
-            >
-              <Clock className="h-5 w-5 text-warning/80 group-hover:text-warning transition-colors" />
-              <span>{t("nav.pending_claims")}</span>
-            </NavLink>
-            <NavLink
-              to="/approved-claims"
-              className="relative flex items-center gap-3 px-3.5 py-3 rounded-lg text-foreground/75 font-medium border border-transparent hover:border-primary/30 hover:bg-primary/10 hover:text-primary transition-all duration-200 group"
-              activeClassName="bg-primary/15 text-primary font-semibold border border-primary/40 shadow-sm before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-6 before:w-1.5 before:rounded-full before:bg-primary"
-            >
-              <CheckCircle className="h-5 w-5 text-success/80 group-hover:text-success transition-colors" />
-              <span>{t("nav.approved_claims")}</span>
-            </NavLink>
-          </>
-        ) : (
+      <nav className="flex-1 py-4 px-3 overflow-y-auto space-y-2">
+        {userRole === "admin" ? (
           <NavLink
             to="/registry"
             className="relative flex items-center gap-3 px-3.5 py-3 rounded-lg text-foreground/75 font-medium border border-transparent hover:border-primary/30 hover:bg-primary/10 hover:text-primary transition-all duration-200 group"
             activeClassName="bg-primary/15 text-primary font-semibold border border-primary/40 shadow-sm before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-6 before:w-1.5 before:rounded-full before:bg-primary"
           >
             <Database className="h-5 w-5 text-primary/80 group-hover:text-primary transition-colors" />
-            <span>{t("nav.teachers_list")}</span>
+            <span>Employee List</span>
+          </NavLink>
+        ) : (
+          // Employee View - Profile Only
+          <NavLink
+            to="/profile"
+            className="relative flex items-center gap-3 px-3.5 py-3 rounded-lg text-foreground/75 font-medium border border-transparent hover:border-primary/30 hover:bg-primary/10 hover:text-primary transition-all duration-200 group"
+            activeClassName="bg-primary/15 text-primary font-semibold border border-primary/40 shadow-sm before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-6 before:w-1.5 before:rounded-full before:bg-primary"
+          >
+            <User className="h-5 w-5 text-info/80 group-hover:text-info transition-colors" />
+            <span>My Profile</span>
           </NavLink>
         )}
       </nav>

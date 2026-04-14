@@ -4,9 +4,8 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Eye, Pencil, Trash2, Plus, Search, SearchX, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Database, Shield } from "lucide-react";
+import { Plus, Search, SearchX, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Database, ShieldCheck, CheckCircle2 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Badge } from "@/components/ui/badge";
 import {
   Pagination,
   PaginationContent,
@@ -17,7 +16,6 @@ import {
 } from "@/components/ui/pagination";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { formatDistanceToNow } from "date-fns";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,7 +27,15 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { searchAllTeachers, searchAllStudents } from "@/lib/api";
+import { searchAllEmployees, getEmployeeById, issueEmployeeCertificate, checkCertificateIssued } from "@/lib/employeeApi";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { Label } from "@/components/ui/label";
 
 type SortOrder = "asc" | "desc" | null;
 type SortField = "created" | "updated" | null;
@@ -62,75 +68,155 @@ const Registry = () => {
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const recordsPerPage = 10;
 
-  useEffect(() => {
-    const role = localStorage.getItem("userRole") || "admin";
-    setUserRole(role);
-    
-    // Fetch entities based on role
-    if (role === "admin") {
-      fetchTeachers();
-    } else if (role === "teacher") {
-      fetchStudents();
-    }
-  }, []);
+  // View Sheet State
+  const [isViewOpen, setIsViewOpen] = useState(false);
+  const [selectedEntity, setSelectedEntity] = useState<any>(null);
+  const [viewLoading, setViewLoading] = useState(false);
 
-  const fetchTeachers = async () => {
-    setIsLoading(true);
+  // Certificate State
+  const [certIssued, setCertIssued] = useState(false);
+  const [certChecking, setCertChecking] = useState(false);
+  const [issuingCert, setIssuingCert] = useState(false);
+  // Tracks which employee osids have a certificate issued (populated on load + after issuance)
+  const [certifiedOsids, setCertifiedOsids] = useState<Set<string>>(new Set());
+
+  const handleView = async (entity: EntityData) => {
+    setIsViewOpen(true);
+    setViewLoading(true);
+    // Pre-populate from already-known state
+    const alreadyKnown = certifiedOsids.has(entity.id);
+    setCertIssued(alreadyKnown);
+    setCertChecking(!alreadyKnown);
     try {
-      const response = await searchAllTeachers();
-      
-      // Handle response structure - could be array or object with data property
-      const teachersArray = Array.isArray(response) ? response : (response.data || []);
-      
-      // Transform API response to EntityData format
-      const teacherData: EntityData[] = teachersArray.map((teacher: any) => ({
-        id: teacher.osid,
-        name: teacher.name,
-        email: teacher.email,
-        instituteName: teacher.instituteName,
-        mobile: teacher.mobile,
-        created: teacher.osCreatedAt,
-        updated: teacher.osUpdatedAt,
-      }));
-      
-      setEntities(teacherData);
+      let details;
+
+      // Fetch employee details
+      details = await getEmployeeById(entity.id);
+
+      let cleanDetails = details;
+      if (details.Employee) cleanDetails = details.Employee;
+      else if (details.result?.Employee) cleanDetails = details.result.Employee;
+
+      setSelectedEntity(cleanDetails);
+
+      // Check certificate status for employees (admin view only)
+      if (userRole === "admin" && !alreadyKnown) {
+        const { issued } = await checkCertificateIssued(entity.id);
+        setCertIssued(issued);
+        if (issued) {
+          setCertifiedOsids(prev => new Set(prev).add(entity.id));
+        }
+        setCertChecking(false);
+      }
     } catch (error) {
+      console.error("Error fetching details:", error);
       toast({
-        title: t("toast.failed_load_teachers"),
-        description: error instanceof Error ? error.message : t("toast.could_not_fetch_teachers"),
-        variant: "destructive",
+        title: "Error",
+        description: "Failed to load details",
+        variant: "destructive"
       });
     } finally {
-      setIsLoading(false);
+      setViewLoading(false);
     }
   };
 
-  const fetchStudents = async () => {
-    setIsLoading(true);
+  const handleIssueCertificate = async () => {
+    if (!selectedEntity) return;
+    const osid = selectedEntity.osid;
+    setIssuingCert(true);
     try {
-      const response = await searchAllStudents();
-      
-      // Handle response structure - could be array or object with data property
-      const studentsArray = Array.isArray(response) ? response : (response.data || []);
-      
-      // Transform API response to EntityData format
-      const studentData: EntityData[] = studentsArray.map((student: any) => ({
-        id: student.osid,
-        name: student.fullName,
-        email: student.email,
-        instituteName: student.instituteName,
-        mobile: student.mobile,
-        created: student.osCreatedAt,
-        updated: student.osUpdatedAt,
-        degree: student.degree,
-        isAttested: student.studentInstituteAttest && student.studentInstituteAttest.length > 0,
-      }));
-      
-      setEntities(studentData);
+      await issueEmployeeCertificate(osid);
+      setCertIssued(true);
+      setCertifiedOsids(prev => new Set(prev).add(osid));
+      toast({
+        title: "Certificate issued",
+        description: `Certificate issued for ${selectedEntity.fullName || selectedEntity.identityDetails?.fullName || "employee"}.`,
+        variant: "success",
+      });
     } catch (error) {
       toast({
-        title: t("toast.failed_load_students"),
-        description: error instanceof Error ? error.message : t("toast.could_not_fetch_students"),
+        title: "Failed to issue certificate",
+        description: error instanceof Error ? error.message : "Could not issue certificate",
+        variant: "destructive",
+      });
+    } finally {
+      setIssuingCert(false);
+    }
+  };
+
+
+  useEffect(() => {
+    const role = sessionStorage.getItem("userRole") || "admin";
+    setUserRole(role);
+
+    // Fetch employees
+    fetchEmployees();
+  }, []);
+
+  const fetchEmployees = async () => {
+    setIsLoading(true);
+    try {
+      const response = await searchAllEmployees();
+
+      // Handle the various ways Sunbird RC can return data
+      // Based on provided JSON: { "totalCount": 7, "data": [...] }
+      let employeesArray = [];
+      if (Array.isArray(response)) {
+        employeesArray = response;
+      } else if (response && typeof response === 'object') {
+        // High priority for the 'data' property as per user JSON
+        const listData = response.data || response.Employee || response.result || response.content;
+
+        if (Array.isArray(listData)) {
+          employeesArray = listData;
+        } else if (listData && typeof listData === 'object' && Array.isArray(listData.content)) {
+          employeesArray = listData.content;
+        } else if (response.osid) {
+          employeesArray = [response];
+        }
+      }
+
+      // Transform API response to EntityData format
+      // Handle both schemas: nested (identityDetails/contactDetails) and flat (firstName/email)
+      const employeeData: EntityData[] = employeesArray.map((employee: any) => {
+        // Nested schema fields
+        const nestedName = employee.identityDetails?.fullName;
+        const nestedEmail = employee.contactDetails?.email;
+        const nestedMobile = employee.contactDetails?.mobile;
+        const nestedEmpNum = employee.identityDetails?.employeeNumber;
+
+        // Flat schema fields
+        const flatName = employee.fullName
+          || (employee.firstName && employee.lastName
+            ? `${employee.firstName} ${employee.lastName}`.trim()
+            : employee.name);
+        const flatEmail = employee.email;
+        const flatMobile = employee.phoneNumber || employee.mobile;
+        const flatEmpNum = employee.employeeNumber;
+
+        return {
+          id: employee.osid || employee.id,
+          name: nestedName || flatName || 'N/A',
+          email: nestedEmail || flatEmail || 'N/A',
+          instituteName: (nestedEmpNum || flatEmpNum) ? `Emp #${nestedEmpNum || flatEmpNum}` : employee.instituteName || 'N/A',
+          mobile: nestedMobile || flatMobile,
+          created: employee.osCreatedAt || employee.createdAt || employee.osCreatedAt || '2024-01-01T00:00:00Z',
+          updated: employee.osUpdatedAt || employee.updatedAt || employee.osUpdatedAt || '2024-01-01T00:00:00Z',
+        };
+      });
+
+      setEntities(employeeData);
+
+      // Background: check certificate status for all employees
+      for (const emp of employeeData) {
+        checkCertificateIssued(emp.id).then(({ issued }) => {
+          if (issued) setCertifiedOsids(prev => new Set(prev).add(emp.id));
+        }).catch(() => {});
+      }
+    } catch (error) {
+      toast({
+        title: t("toast.failed_load_employees") || "Failed to load employees",
+        description: error instanceof Error ? error.message : t("toast.could_not_fetch_employees") || "Could not fetch employees",
         variant: "destructive",
       });
     } finally {
@@ -154,10 +240,10 @@ const Registry = () => {
   // Sort entities if sort field is set
   const sortedEntities = [...filteredEntities].sort((a, b) => {
     if (!sortField || !sortOrder) return 0;
-    
+
     const dateA = new Date(a[sortField]).getTime();
     const dateB = new Date(b[sortField]).getTime();
-    
+
     return sortOrder === "desc" ? dateB - dateA : dateA - dateB;
   });
 
@@ -191,7 +277,7 @@ const Registry = () => {
       setIsDeleting(true);
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
       setEntities(entities.filter((entity) => entity.id !== deleteId));
       toast({
         title: t("toast.entity_deleted"),
@@ -204,8 +290,8 @@ const Registry = () => {
     }
   };
 
-  const addButtonText = userRole === "admin" ? t("btn.add_teacher") : t("btn.add_student");
-  const pageTitle = userRole === "admin" ? t("title.teacher_management") : t("title.student_management");
+  const addButtonText = "Add Employee";
+  const pageTitle = "Employee Management";
 
   return (
     <DashboardLayout>
@@ -218,12 +304,12 @@ const Registry = () => {
             {pageTitle}
           </h1>
         </div>
-        
+
         <div className="flex items-center gap-4 w-full">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder={userRole === "admin" ? t("placeholder.search_teachers") : t("placeholder.search_students")}
+              placeholder="Search employees..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 bg-card font-medium rounded-lg h-11 border-input"
@@ -235,7 +321,18 @@ const Registry = () => {
           </Button>
         </div>
 
-        {filteredEntities.length === 0 ? (
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-20 bg-muted/10 rounded-2xl border border-dashed border-border/60">
+            <div className="relative">
+              <div className="h-16 w-16 rounded-full border-t-2 border-r-2 border-primary animate-spin"></div>
+              <div className="absolute inset-0 h-16 w-16 rounded-full border-2 border-primary/10"></div>
+              <Database className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-6 w-6 text-primary animate-pulse" />
+            </div>
+            <p className="mt-4 text-sm font-semibold text-muted-foreground animate-pulse">
+              Syncing with Registry...
+            </p>
+          </div>
+        ) : filteredEntities.length === 0 ? (
           <div className="rounded-2xl border-2 border-dashed border-primary/20 bg-gradient-to-br from-muted/30 via-muted/10 to-transparent overflow-hidden">
             <div className="flex flex-col items-center justify-center py-12 px-6">
               <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-4 ring-4 ring-primary/5">
@@ -243,13 +340,13 @@ const Registry = () => {
               </div>
               <h3 className="text-lg font-bold text-foreground mb-2">{t("no_data.no_records")}</h3>
               <p className="text-sm text-muted-foreground mb-4 text-center max-w-sm">
-                {searchQuery 
+                {searchQuery
                   ? t("no_data.no_match_criteria")
                   : t("no_data.no_entities_available")}
               </p>
               {searchQuery && (
-                <Button 
-                  variant="default" 
+                <Button
+                  variant="default"
                   size="sm"
                   onClick={() => setSearchQuery("")}
                   className="rounded-lg shadow-md hover:shadow-lg transition-all"
@@ -264,160 +361,123 @@ const Registry = () => {
           <div className="rounded-xl border border-border bg-card overflow-hidden shadow-lg">
             <Table className="relative">
               <TableHeader className="sticky top-0 z-10">
-              <TableRow className="bg-secondary/95 backdrop-blur-sm border-b border-border/60">
-                <TableHead className="uppercase text-[11px] tracking-wider font-semibold text-muted-foreground">{t("table.name")}</TableHead>
-                {userRole === "teacher" && (
-                  <>
-                    <TableHead className="uppercase text-[11px] tracking-wider font-semibold text-muted-foreground">{t("form.institute_name")}</TableHead>
-                    <TableHead className="uppercase text-[11px] tracking-wider font-semibold text-muted-foreground">{t("form.degree")}</TableHead>
-                  </>
-                )}
-                {/* {userRole === "admin" && (
-                  <TableHead className="font-bold text-foreground">{t("form.institute_name")}</TableHead>
-                )} */}
-                <TableHead className="uppercase text-[11px] tracking-wider font-semibold text-muted-foreground">
-                  <button
-                    onClick={() => toggleSort("created")}
-                    className="flex items-center gap-2 hover:text-primary transition-colors font-medium"
-                  >
-                    {t("table.created_on")}
-                    {getSortIcon("created")}
-                  </button>
-                </TableHead>
-                <TableHead className="uppercase text-[11px] tracking-wider font-semibold text-muted-foreground">
-                  <button
-                    onClick={() => toggleSort("updated")}
-                    className="flex items-center gap-2 hover:text-primary transition-colors font-medium"
-                  >
-                    {t("table.updated_on")}
-                    {getSortIcon("updated")}
-                  </button>
-                </TableHead>
-                <TableHead className="uppercase text-[11px] tracking-wider font-semibold text-muted-foreground">{t("table.actions")}</TableHead>
-              </TableRow>
+                <TableRow className="bg-secondary/95 backdrop-blur-sm border-b border-border/60">
+                  <TableHead className="uppercase text-[11px] tracking-wider font-semibold text-muted-foreground">{t("table.name")}</TableHead>
+                  <TableHead className="uppercase text-[11px] tracking-wider font-semibold text-muted-foreground">
+                    <button
+                      onClick={() => toggleSort("created")}
+                      className="flex items-center gap-2 hover:text-primary transition-colors font-medium"
+                    >
+                      {t("table.created_on")}
+                      {getSortIcon("created")}
+                    </button>
+                  </TableHead>
+                  <TableHead className="uppercase text-[11px] tracking-wider font-semibold text-muted-foreground">
+                    <button
+                      onClick={() => toggleSort("updated")}
+                      className="flex items-center gap-2 hover:text-primary transition-colors font-medium"
+                    >
+                      {t("table.updated_on")}
+                      {getSortIcon("updated")}
+                    </button>
+                  </TableHead>
+                  <TableHead className="uppercase text-[11px] tracking-wider font-semibold text-muted-foreground">{t("table.actions")}</TableHead>
+                </TableRow>
               </TableHeader>
               <TableBody>
                 {paginatedEntities.map((entity, i) => (
-                <TableRow key={entity.id} className={cn("transition-colors", i % 2 === 0 ? "bg-background" : "bg-muted/40", "hover:bg-muted/60")}>                  
-                  <TableCell className="font-medium text-foreground">
-                    {entity.name}
-                  </TableCell>
-                  {userRole === "teacher" && (
-                    <>
-                      <TableCell className="font-medium text-muted-foreground">
-                        {entity.instituteName || "—"}
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {entity.degree ? (
-                          <div className="flex items-center gap-2">
-                            {entity.isAttested ? (
-                              <Badge variant="default" className="gap-1">
-                                <Shield className="h-3 w-3" />
-                                {entity.degree}
-                              </Badge>
-                            ) : (
-                              <span className="text-foreground">
-                                {entity.degree}
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">—</span>
-                        )}
-                      </TableCell>
-                    </>
-                  )}
-                  {/* {userRole === "admin" && (
-                    <TableCell className="font-medium">{entity.instituteName}</TableCell>
-                  )} */}
-                  <TableCell>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="cursor-help">
-                            {formatDistanceToNow(new Date(entity.created), { addSuffix: true })}
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>{new Date(entity.created).toLocaleString()}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </TableCell>
-                  <TableCell>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="cursor-help">
-                            {formatDistanceToNow(new Date(entity.updated), { addSuffix: true })}
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>{new Date(entity.updated).toLocaleString()}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </TableCell>
-                  <TableCell>
-                    <TooltipProvider>
-                      <div className="flex gap-2">
+                  <TableRow key={entity.id} className={cn("transition-colors", i % 2 === 0 ? "bg-background" : "bg-muted/40", "hover:bg-muted/60")}>
+                    <TableCell className="font-medium text-foreground">
+                      {entity.name}
+                    </TableCell>
+                    <TableCell>
+                      <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => navigate(`/entity/${entity.id}`)}
-                              className="bg-secondary hover:bg-muted text-foreground hover:text-foreground transition-colors"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
+                            <div className="cursor-help">
+                              <div className="text-sm font-medium text-foreground">
+                                {new Date(entity.created).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric'
+                                })}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {new Date(entity.created).toLocaleTimeString('en-US', {
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </div>
+                            </div>
                           </TooltipTrigger>
-                          <TooltipContent>{t("action.view")}</TooltipContent>
+                          <TooltipContent>
+                            <p className="font-mono text-xs">{new Date(entity.created).toLocaleString()}</p>
+                          </TooltipContent>
                         </Tooltip>
-                        
+                      </TooltipProvider>
+                    </TableCell>
+                    <TableCell>
+                      <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => navigate(`/entity/${entity.id}/edit`)}
-                              className="bg-secondary hover:bg-muted text-foreground hover:text-foreground transition-colors"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
+                            <div className="cursor-help">
+                              <div className="text-sm font-medium text-foreground">
+                                {new Date(entity.updated).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric'
+                                })}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {new Date(entity.updated).toLocaleTimeString('en-US', {
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </div>
+                            </div>
                           </TooltipTrigger>
-                          <TooltipContent>{t("action.edit")}</TooltipContent>
+                          <TooltipContent>
+                            <p className="font-mono text-xs">{new Date(entity.updated).toLocaleString()}</p>
+                          </TooltipContent>
                         </Tooltip>
-                        
-                        {/* Delete button disabled for now */}
-                        {/* <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setDeleteId(entity.id)}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>{t("action.delete")}</TooltipContent>
-                        </Tooltip> */}
-                      </div>
-                    </TooltipProvider>
-                  </TableCell>
-                </TableRow>
-              ))}
+                      </TooltipProvider>
+                    </TableCell>
+                    <TableCell>
+                      {certifiedOsids.has(entity.id) ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleView(entity)}
+                          className="gap-2 border-green-500 text-green-600 hover:bg-green-50"
+                        >
+                          <CheckCircle2 className="h-4 w-4" />
+                          Verified
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleView(entity)}
+                          className="gap-2"
+                        >
+                          <ShieldCheck className="h-4 w-4" />
+                          Verify Certificate
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           </div>
         )}
-        
-                {filteredEntities.length > 0 && totalPages > 1 && (
+
+        {filteredEntities.length > 0 && totalPages > 1 && (
           <div className="flex justify-center mt-8">
             <Pagination>
               <PaginationContent className="gap-2">
                 <PaginationItem>
-                  <PaginationPrevious 
+                  <PaginationPrevious
                     onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                     className={cn(
                       "cursor-pointer rounded-lg border-2 hover:bg-primary/10 hover:border-primary hover:text-primary transition-all",
@@ -425,7 +485,7 @@ const Registry = () => {
                     )}
                   />
                 </PaginationItem>
-                
+
                 {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                   <PaginationItem key={page}>
                     <PaginationLink
@@ -433,8 +493,8 @@ const Registry = () => {
                       isActive={currentPage === page}
                       className={cn(
                         "cursor-pointer rounded-lg border-2 transition-all",
-                        currentPage === page 
-                          ? "bg-primary text-primary-foreground border-primary hover:bg-primary/90" 
+                        currentPage === page
+                          ? "bg-primary text-primary-foreground border-primary hover:bg-primary/90"
                           : "border-border hover:bg-primary/10 hover:border-primary hover:text-primary"
                       )}
                     >
@@ -442,9 +502,9 @@ const Registry = () => {
                     </PaginationLink>
                   </PaginationItem>
                 ))}
-                
+
                 <PaginationItem>
-                  <PaginationNext 
+                  <PaginationNext
                     onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                     className={cn(
                       "cursor-pointer rounded-lg border-2 hover:bg-primary/10 hover:border-primary hover:text-primary transition-all",
@@ -481,6 +541,59 @@ const Registry = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <Sheet open={isViewOpen} onOpenChange={setIsViewOpen}>
+        <SheetContent className="overflow-y-auto sm:max-w-md w-full">
+          <SheetHeader>
+            <SheetTitle>Verify Certificate</SheetTitle>
+            <SheetDescription>Issue a verified credential for this employee</SheetDescription>
+          </SheetHeader>
+
+          {viewLoading ? (
+            <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>
+          ) : selectedEntity ? (
+            <div className="mt-6 space-y-6">
+
+              {/* Employee name */}
+              <div className="bg-muted/40 p-4 rounded-lg border border-border">
+                <h3 className="font-bold text-lg mb-1">{selectedEntity.fullName || selectedEntity.identityDetails?.fullName || selectedEntity.name || "N/A"}</h3>
+                <p className="text-sm text-muted-foreground">{selectedEntity.email || selectedEntity.contactDetails?.email || "N/A"}</p>
+              </div>
+
+              {/* Certificate status / issuance */}
+              <div className="space-y-3">
+                <Label className="text-xs text-muted-foreground uppercase tracking-wide">Certificate Status</Label>
+                {certChecking ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Checking...
+                  </div>
+                ) : certIssued ? (
+                  <div className="flex items-center gap-2 text-green-600 font-semibold">
+                    <CheckCircle2 className="h-5 w-5" />
+                    Certificate already issued
+                  </div>
+                ) : (
+                  <Button
+                    className="gap-2 w-full"
+                    onClick={handleIssueCertificate}
+                    disabled={issuingCert}
+                  >
+                    {issuingCert ? (
+                      <><Loader2 className="h-4 w-4 animate-spin" />Issuing...</>
+                    ) : (
+                      <><ShieldCheck className="h-4 w-4" />Verify &amp; Issue Certificate</>
+                    )}
+                  </Button>
+                )}
+              </div>
+
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">No details available</div>
+          )}
+        </SheetContent>
+      </Sheet>
+
     </DashboardLayout>
   );
 };

@@ -28,7 +28,7 @@ export const TopBar = ({ title }: TopBarProps) => {
   const { language, setLanguage, t } = useLanguage();
 
   // Determine if we should show search bar
-  const showSearchBar = userRole !== "student" && (location.pathname.startsWith("/entity/new") || 
+  const showSearchBar = userRole !== "employee" && (location.pathname.startsWith("/entity/new") ||
                         location.pathname.startsWith("/profile") ||
                         (location.pathname.match(/^\/entity\/[^/]+$/) && !location.pathname.endsWith("/edit")) ||
                         location.pathname.match(/^\/entity\/[^/]+\/edit$/));
@@ -38,17 +38,14 @@ export const TopBar = ({ title }: TopBarProps) => {
   // Get role display name
   const getRoleDisplay = (role: string) => {
     if (role === "admin") return "Administrator";
-    if (role === "teacher") return "Teacher";
-    if (role === "student") return "Student";
+    if (role === "employee") return "Employee";
     return "User";
   };
 
   // Get search placeholder based on role
   const getSearchPlaceholder = (role: string) => {
-    if (role === "admin") return t("search.teachers");
-    if (role === "teacher") return t("search.students");
-    if (role === "student") return t("search.claims");
-    return t("search.default");
+    if (role === "admin") return "Search employees...";
+    return "Search...";
   };
 
   useEffect(() => {
@@ -64,13 +61,13 @@ export const TopBar = ({ title }: TopBarProps) => {
       }
     }
     
-    const userEmail = localStorage.getItem("userEmail");
+    const userEmail = sessionStorage.getItem("userEmail");
     if (userEmail) {
       const emailUsername = userEmail.split("@")[0];
       setUsername(emailUsername);
     }
-    
-    const role = localStorage.getItem("userRole") || "admin";
+
+    const role = sessionStorage.getItem("userRole") || "admin";
     setUserRole(role);
   }, [theme]);
 
@@ -157,13 +154,13 @@ export const TopBar = ({ title }: TopBarProps) => {
         </Select>
         <div className="flex items-center gap-3 pl-4 border-l">
           <DropdownMenu>
-            <DropdownMenuTrigger asChild disabled={userRole === "admin" || userRole === "student"}>
-              <button 
+            <DropdownMenuTrigger asChild disabled={userRole === "admin"}>
+              <button
                 className={cn(
                   "flex items-center gap-3 transition-colors focus:outline-none",
-                  (userRole === "admin" || userRole === "student") ? "opacity-50 cursor-not-allowed" : "hover:text-primary"
+                  userRole === "admin" ? "opacity-50 cursor-not-allowed" : "hover:text-primary"
                 )}
-                disabled={userRole === "admin" || userRole === "student"}
+                disabled={userRole === "admin"}
               >
                 <div className={cn(
                   "h-8 w-8 rounded-full bg-primary flex items-center justify-center",
