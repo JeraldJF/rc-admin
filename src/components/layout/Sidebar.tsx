@@ -20,10 +20,25 @@ export const Sidebar = () => {
       description: "Ending your session...",
     });
 
-    // Clear session data and redirect to login
-    localStorage.clear();
+    // Get id_token before clearing storage for proper OIDC logout
+    const idToken = sessionStorage.getItem('id_token');
+    
+    // Preserve user preferences (theme, language) while clearing auth data
+    const theme = localStorage.getItem('theme');
+    const language = localStorage.getItem('language');
+    
+    // Clear all session data
     sessionStorage.clear();
-    window.location.href = '/login';
+    localStorage.clear();
+    
+    // Restore user preferences
+    if (theme) localStorage.setItem('theme', theme);
+    if (language) localStorage.setItem('language', language);
+
+    // Proper OIDC logout — invalidates Hydra session and all tokens
+    const postLogoutUri = encodeURIComponent(window.location.origin + '/login');
+    const hydraPublic = import.meta.env.VITE_ORY_HYDRA_PUBLIC || 'http://localhost:4444';
+    window.location.href = `${hydraPublic}/oauth2/sessions/logout?id_token_hint=${idToken}&post_logout_redirect_uri=${postLogoutUri}`;
   };
 
   return (

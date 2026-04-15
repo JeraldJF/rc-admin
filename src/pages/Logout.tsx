@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
+import { rewriteHydraRedirect } from '@/lib/oauth2';
 
 const HYDRA_ADMIN = import.meta.env.VITE_ORY_HYDRA_ADMIN || 'http://localhost:4445';
 
@@ -10,9 +11,19 @@ export default function Logout() {
 
   useEffect(() => {
     const performLogout = async () => {
-      // Step 1: Clear all local session data immediately
+      // Step 1: Preserve user preferences (theme, language) while clearing auth data
+      const theme = localStorage.getItem('theme');
+      const language = localStorage.getItem('language');
+      
+      // Clear all session storage (auth tokens, user info)
       sessionStorage.clear();
+      
+      // Clear all localStorage
       localStorage.clear();
+      
+      // Restore user preferences
+      if (theme) localStorage.setItem('theme', theme);
+      if (language) localStorage.setItem('language', language);
 
       // Step 2: If we have a logout challenge from Hydra, accept it
       if (logoutChallenge) {
@@ -26,7 +37,8 @@ export default function Logout() {
             const data = await response.json();
             // Hydra returns a redirect_to URL after accepting logout
             if (data.redirect_to) {
-              window.location.href = data.redirect_to;
+              // Rewrite Hydra redirect to go through proxy for proper cookie handling
+              window.location.href = rewriteHydraRedirect(data.redirect_to);
               return;
             }
           }
