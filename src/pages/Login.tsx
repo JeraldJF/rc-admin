@@ -14,7 +14,7 @@ import { lookupEmployeeRole } from '@/lib/roleService';
 //   3. External IdP authenticates → redirects to /callback (Callback.tsx)
 //   4. No challenge anywhere → show landing page, button starts fresh Hydra flow
 
-const HYDRA_ADMIN  = import.meta.env.VITE_ORY_HYDRA_ADMIN  || 'http://localhost:4445';
+import { getConfig } from '@/lib/config';
 const EXT_AUTH_URL = 'https://cuenta.digital.gob.do/oauth2/auth';
 const EXT_IDP_NAME = 'cuenta.digital.gob.do';
 
@@ -34,7 +34,7 @@ const Login = () => {
     }
 
     const res = await fetch(
-      `${HYDRA_ADMIN}/admin/oauth2/auth/requests/login/accept?login_challenge=${challenge}`,
+      `${getConfig().VITE_ORY_HYDRA_ADMIN}/admin/oauth2/auth/requests/login/accept?login_challenge=${challenge}`,
       {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -62,8 +62,8 @@ const Login = () => {
     sessionStorage.setItem('external_oidc_state', extState);
 
     const authUrl = new URL(EXT_AUTH_URL);
-    authUrl.searchParams.set('client_id',     import.meta.env.VITE_EXT_OIDC_CLIENT_ID);
-    authUrl.searchParams.set('redirect_uri',  import.meta.env.VITE_EXT_OIDC_REDIRECT_URI || 'http://localhost:3000/callback');
+    authUrl.searchParams.set('client_id',     getConfig().VITE_EXT_OIDC_CLIENT_ID);
+    authUrl.searchParams.set('redirect_uri',  getConfig().VITE_EXT_OIDC_REDIRECT_URI || 'http://localhost:3000/callback');
     authUrl.searchParams.set('response_type', 'code');
     authUrl.searchParams.set('scope',         'openid offline_access email profile');
     authUrl.searchParams.set('state',         extState);

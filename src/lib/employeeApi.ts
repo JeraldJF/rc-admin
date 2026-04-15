@@ -1,6 +1,8 @@
 import { getAuthToken } from './api';
 
-const BASE_URL: string = (import.meta.env.VITE_API_BASE_URL as string) || "";
+import { getConfig } from './config';
+
+const getBaseUrl = () => getConfig().VITE_API_BASE_URL || '';
 
 // Auto-logout on 401 error
 const handleUnauthorized = () => {
@@ -16,7 +18,7 @@ export const searchAllEmployees = async () => {
 
     // Helper to perform search
     const performSearch = async (payload: any) => {
-        const response = await fetch(`${BASE_URL}/registry/api/v1/Employee/search`, {
+        const response = await fetch(`${getBaseUrl()}/registry/api/v1/Employee/search`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -60,7 +62,7 @@ export const searchAllEmployees = async () => {
 export const searchEmployeeByPersonalId = async (personalId: string) => {
     const token = getAuthToken();
 
-    const response = await fetch(`${BASE_URL}/registry/api/v1/Employee/search`, {
+    const response = await fetch(`${getBaseUrl()}/registry/api/v1/Employee/search`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -83,7 +85,7 @@ export const searchEmployeeByEmail = async (email: string) => {
 
     // Helper to perform search
     const performSearch = async (filterObj: any) => {
-        const response = await fetch(`${BASE_URL}/registry/api/v1/Employee/search`, {
+        const response = await fetch(`${getBaseUrl()}/registry/api/v1/Employee/search`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -107,7 +109,7 @@ export const searchEmployeeByEmail = async (email: string) => {
 export const getEmployeeById = async (osid: string) => {
     const token = getAuthToken();
 
-    const response = await fetch(`${BASE_URL}/registry/api/v1/Employee/${osid}`, {
+    const response = await fetch(`${getBaseUrl()}/registry/api/v1/Employee/${osid}`, {
         method: "GET",
         headers: {
             "Accept": "application/json",
@@ -135,7 +137,7 @@ export const inviteEmployee = async (employeeData: {
     mobile?: string;
     role?: 'admin' | 'employee';
 }): Promise<{ isDuplicate?: boolean; result?: any }> => {
-    const response = await fetch(`${BASE_URL}/registry/api/v1/Employee/invite`, {
+    const response = await fetch(`${getBaseUrl()}/registry/api/v1/Employee/invite`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -175,7 +177,7 @@ export const addEmployee = async (employeeData: {
 }) => {
     const token = getAuthToken();
 
-    const response = await fetch(`${BASE_URL}/registry/api/v1/Employee`, {
+    const response = await fetch(`${getBaseUrl()}/registry/api/v1/Employee`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -198,10 +200,10 @@ export const addEmployee = async (employeeData: {
 
 // Credential service config — sourced from Vite environment variables
 // Required env vars: VITE_ISSUER_DID, VITE_SCHEMA_ID, VITE_SCHEMA_VERSION, VITE_TEMPLATE_ID
-const ISSUER_DID: string = (import.meta.env.VITE_ISSUER_DID as string) || "";
-const SCHEMA_ID: string = (import.meta.env.VITE_SCHEMA_ID as string) || "";
-const SCHEMA_VERSION: string = (import.meta.env.VITE_SCHEMA_VERSION as string) || "";
-const TEMPLATE_ID: string = (import.meta.env.VITE_TEMPLATE_ID as string) || "";
+const getIssuerDid = () => getConfig().VITE_ISSUER_DID || '';
+const getSchemaId = () => getConfig().VITE_SCHEMA_ID || '';
+const getSchemaVersion = () => getConfig().VITE_SCHEMA_VERSION || '';
+const getTemplateId = () => getConfig().VITE_TEMPLATE_ID || '';
 // JSON-LD context required for Ed25519 signing — fields must map to absolute IRIs
 const VC_CONTEXT = [
     "https://www.w3.org/2018/credentials/v1",
@@ -239,7 +241,7 @@ export const checkCertificateIssued = async (osid: string): Promise<{ issued: bo
     const token = getAuthToken();
     try {
         const tagsRes = await fetch(
-            `${BASE_URL}/credential/credentials?tags=${encodeURIComponent(osid)}`,
+            `${getBaseUrl()}/credential/credentials?tags=${encodeURIComponent(osid)}`,
             { headers: { "Accept": "application/json", "Authorization": `Bearer ${token}` } }
         );
         if (tagsRes.ok) {
@@ -276,7 +278,7 @@ export const issueEmployeeCertificate = async (osid: string): Promise<string> =>
         credential: {
             "@context": VC_CONTEXT,
             type: ["VerifiableCredential", "Employee"],
-            issuer: ISSUER_DID,
+            issuer: getIssuerDid(),
             issuanceDate: new Date().toISOString(),
             expirationDate: "2030-12-31T00:00:00.000Z",
             credentialSubject: {
@@ -292,16 +294,16 @@ export const issueEmployeeCertificate = async (osid: string): Promise<string> =>
                 ...(dateOfHire && { dateOfHire }),
             },
             credentialSchema: {
-                id: SCHEMA_ID,
+                id: getSchemaId(),
                 type: "JsonSchemaValidator2018",
             },
         },
-        credentialSchemaId: SCHEMA_ID,
-        credentialSchemaVersion: SCHEMA_VERSION,
+        credentialSchemaId: getSchemaId(),
+        credentialSchemaVersion: getSchemaVersion(),
         tags: ["employee", osid],
     };
 
-    const issueRes = await fetch(`${BASE_URL}/credential/credentials/issue`, {
+    const issueRes = await fetch(`${getBaseUrl()}/credential/credentials/issue`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Accept": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify(issuePayload),
@@ -327,12 +329,12 @@ export const downloadEmployeeCertificate = async (osid: string): Promise<Blob> =
     }
 
     const pdfRes = await fetch(
-        `${BASE_URL}/credential/credentials/${encodeURIComponent(credentialId)}`,
+        `${getBaseUrl()}/credential/credentials/${encodeURIComponent(credentialId)}`,
         {
             method: "GET",
             headers: {
                 "Accept": "application/pdf",
-                "templateId": TEMPLATE_ID,
+                "templateId": getTemplateId(),
                 "Authorization": `Bearer ${token}`,
             },
         }
@@ -362,7 +364,7 @@ export const updateEmployee = async (employeeId: string, employeeData: Partial<{
 }>) => {
     const token = getAuthToken();
 
-    const response = await fetch(`${BASE_URL}/registry/api/v1/Employee/${employeeId}`, {
+    const response = await fetch(`${getBaseUrl()}/registry/api/v1/Employee/${employeeId}`, {
         method: "PUT",
         headers: {
             "Content-Type": "application/json",

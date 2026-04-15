@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { getConfig } from '@/lib/config';
 import { rewriteHydraRedirect } from '@/lib/oauth2';
 import { useSearchParams } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
@@ -22,7 +23,7 @@ export default function Consent() {
         try {
             // First, get the consent request to extract user info
             const consentRequest = await fetch(
-                `${import.meta.env.VITE_ORY_HYDRA_ADMIN || 'http://localhost:4445'}/admin/oauth2/auth/requests/consent?consent_challenge=${consentChallenge}`,
+                `${getConfig().VITE_ORY_HYDRA_ADMIN || 'http://localhost:4445'}/admin/oauth2/auth/requests/consent?consent_challenge=${consentChallenge}`,
                 {
                     method: 'GET',
                     headers: {
@@ -43,7 +44,7 @@ export default function Consent() {
 
             // Accept consent with session claims mapped to top-level
             const acceptResponse = await fetch(
-                `${import.meta.env.VITE_ORY_HYDRA_ADMIN || 'http://localhost:4445'}/admin/oauth2/auth/requests/consent/accept?consent_challenge=${consentChallenge}`,
+                `${getConfig().VITE_ORY_HYDRA_ADMIN || 'http://localhost:4445'}/admin/oauth2/auth/requests/consent/accept?consent_challenge=${consentChallenge}`,
                 {
                     method: 'PUT',
                     headers: {
@@ -165,7 +166,7 @@ export default function Consent() {
                                     setIsLoading(true);
                                     try {
                                         const rejectResponse = await fetch(
-                                            `${import.meta.env.VITE_ORY_HYDRA_ADMIN || 'http://localhost:4445'}/admin/oauth2/auth/requests/consent/reject?consent_challenge=${consentChallenge}`,
+                                            `${getConfig().VITE_ORY_HYDRA_ADMIN || 'http://localhost:4445'}/admin/oauth2/auth/requests/consent/reject?consent_challenge=${consentChallenge}`,
                                             {
                                                 method: 'PUT',
                                                 headers: { 'Content-Type': 'application/json' },

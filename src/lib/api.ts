@@ -1,4 +1,6 @@
-const BASE_URL: string = (import.meta.env.VITE_API_BASE_URL as string) || "";
+import { getConfig } from './config';
+
+const getBaseUrl = () => getConfig().VITE_API_BASE_URL || '';
 
 // Token management
 export const getAuthToken = (): string | null => {
@@ -15,7 +17,7 @@ const handleUnauthorized = () => {
 export const searchAdminByEmail = async (email: string) => {
   const token = getAuthToken();
 
-  const response = await fetch(`${BASE_URL}/registry/api/v1/Admin/search`, {
+  const response = await fetch(`${getBaseUrl()}/registry/api/v1/Admin/search`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -39,7 +41,7 @@ export const searchAdminByEmail = async (email: string) => {
 export const getAdminById = async (osid: string) => {
   const token = getAuthToken();
 
-  const response = await fetch(`${BASE_URL}/registry/api/v1/Admin/${osid}`, {
+  const response = await fetch(`${getBaseUrl()}/registry/api/v1/Admin/${osid}`, {
     method: "GET",
     headers: {
       "Accept": "application/json",

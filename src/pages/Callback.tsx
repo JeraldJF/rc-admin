@@ -2,11 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { oauth2Service, rewriteHydraRedirect } from '../lib/oauth2';
 import { lookupEmployeeRole } from '../lib/roleService';
-
-const HYDRA_ADMIN = import.meta.env.VITE_ORY_HYDRA_ADMIN || 'http://localhost:4445';
-const EXT_CLIENT_ID = import.meta.env.VITE_EXT_OIDC_CLIENT_ID;
-const EXT_CLIENT_SECRET = import.meta.env.VITE_EXT_OIDC_CLIENT_SECRET;
-const EXT_REDIRECT_URI = import.meta.env.VITE_EXT_OIDC_REDIRECT_URI || 'http://localhost:3000/callback';
+import { getConfig } from '../lib/config';
 
 export default function Callback() {
   const [searchParams] = useSearchParams();
@@ -42,16 +38,14 @@ export default function Callback() {
         try {
           sessionStorage.removeItem('external_oidc_state');
 
-          // Exchange code with external IdP via dev proxy (/ext-oidc/ → cuenta.digital.gob.do/oauth2/)
-          const tokenResponse = await fetch('/ext-oidc/token', {
+          // Exchange code via our server-side endpoint so client_id + client_secret
+          // never appear in the browser bundle.
+          const tokenResponse = await fetch('/auth/ext-token', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: new URLSearchParams({
-              grant_type: 'authorization_code',
               code,
-              redirect_uri: EXT_REDIRECT_URI,
-              client_id: EXT_CLIENT_ID,
-              client_secret: EXT_CLIENT_SECRET,
+              redirect_uri: getConfig().VITE_EXT_OIDC_REDIRECT_URI || 'http://localhost:3000/callback',
             }),
           });
 
@@ -114,7 +108,7 @@ export default function Callback() {
 
           // Accept Hydra login challenge with the external user's identity
           const acceptRes = await fetch(
-            `${HYDRA_ADMIN}/admin/oauth2/auth/requests/login/accept?login_challenge=${loginChallenge}`,
+            `${getConfig().VITE_ORY_HYDRA_ADMIN || 'http://localhost:4445'}/admin/oauth2/auth/requests/login/accept?login_challenge=${loginChallenge}`,
             {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },

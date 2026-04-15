@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 
-const HYDRA_ADMIN = import.meta.env.VITE_ORY_HYDRA_ADMIN || 'http://localhost:4445';
+import { getConfig } from '@/lib/config';
 
 export default function Logout() {
   const [searchParams] = useSearchParams();
@@ -19,7 +19,7 @@ export default function Logout() {
 
     // Step 2: accept the Hydra logout challenge (invalidates Hydra tokens)
     fetch(
-      `${HYDRA_ADMIN}/admin/oauth2/auth/requests/logout/accept?logout_challenge=${logoutChallenge}`,
+      `${getConfig().VITE_ORY_HYDRA_ADMIN}/admin/oauth2/auth/requests/logout/accept?logout_challenge=${logoutChallenge}`,
       { method: 'PUT' }
     )
       .then(() => {

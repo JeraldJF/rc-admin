@@ -1,27 +1,43 @@
-# Use Node.js 18 Alpine as base image
-FROM node:18-alpine
+# =============================================================================
+# Stage 1: Build the React frontend
+# No VITE_* build args needed — the app fetches all config from GET /config
+# at runtime, so the bundle is environment-agnostic.
+# =============================================================================
+FROM node:20-alpine AS frontend-build
 
-# Set working directory
 WORKDIR /app
-
-# Copy package files
-COPY package*.json ./
-COPY bun.lockb* ./
-
-# Install dependencies using bun (if available) or npm
+COPY package*.json bun.lockb* ./
 RUN npm install -g bun && bun install || npm install
-
-# Copy environment file first
-COPY .env* ./
-
-# Copy source code
 COPY . .
-
-# Build the application
 RUN npm run build
 
-# Expose port 8080 (Vite preview server)
+# =============================================================================
+# Stage 2: Build the Express server (TypeScript → JavaScript)
+# =============================================================================
+FROM node:20-alpine AS server-build
+
+WORKDIR /server
+COPY server/package*.json ./
+RUN npm install
+COPY server/ .
+RUN npm run build
+
+# =============================================================================
+# Stage 3: Production image
+# All config — URLs, client IDs, secrets — is injected at runtime via env vars.
+# No rebuild needed when any value changes.
+# =============================================================================
+FROM node:20-slim AS production
+
+WORKDIR /app
+
+# Frontend static files
+COPY --from=frontend-build /app/dist ./dist
+
+# Server compiled JS and its dependencies
+COPY --from=server-build /server/dist ./server/dist
+COPY --from=server-build /server/node_modules ./server/node_modules
+
 EXPOSE 8080
 
-# Start the preview server
-CMD ["npm", "run", "preview", "--", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["node", "server/dist/server.js"]

@@ -1,4 +1,5 @@
 import { Database, LogOut, User } from "lucide-react";
+import { getConfig } from "@/lib/config";
 import { NavLink } from "@/components/NavLink";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
@@ -27,7 +28,7 @@ export const Sidebar = () => {
     sessionStorage.clear();
 
     const postLogoutUri = encodeURIComponent(window.location.origin + '/login');
-    const hydraPublic = import.meta.env.VITE_ORY_HYDRA_PUBLIC || 'http://localhost:4444';
+    const hydraPublic = getConfig().VITE_ORY_HYDRA_PUBLIC || 'http://localhost:4444';
 
     if (idToken) {
       // Proper OIDC logout — invalidates Hydra session and all tokens

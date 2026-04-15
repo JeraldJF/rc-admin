@@ -3,6 +3,8 @@
  * Replaces direct database access with proper API calls
  */
 
+import { getConfig } from './config';
+
 interface RoleLookupResult {
   role: string;
   osid: string | null;
@@ -21,7 +23,7 @@ export async function lookupEmployeeRole(email: string): Promise<RoleLookupResul
 
   try {
     // First attempt: search by email in contactDetails
-    const searchRes = await fetch(`${import.meta.env.VITE_API_BASE_URL || ''}/registry/api/v1/Employee/search`, {
+    const searchRes = await fetch(`${getConfig().VITE_API_BASE_URL || ''}/registry/api/v1/Employee/search`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -52,7 +54,7 @@ export async function lookupEmployeeRole(email: string): Promise<RoleLookupResul
       const personalId = email.replace(/@.*$/, ''); // Strip domain: 81272727841@rc.local → 81272727841
 
       if (/^\d+$/.test(personalId)) {
-        const searchRes2 = await fetch(`${import.meta.env.VITE_API_BASE_URL || ''}/registry/api/v1/Employee/search`, {
+        const searchRes2 = await fetch(`${getConfig().VITE_API_BASE_URL || ''}/registry/api/v1/Employee/search`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
