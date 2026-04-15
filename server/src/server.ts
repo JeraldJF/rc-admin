@@ -290,12 +290,14 @@ app.use(
 );
 
 // Registry API (must be registered before /api to avoid the shorter prefix matching first)
+// Express strips the mount path (/registry/api) before handing off to the proxy,
+// so pathRewrite adds it back → target receives the full /registry/api/v1/... path.
 app.use(
   '/registry/api',
   createProxyMiddleware({
     target: process.env.API_BASE_URL || 'http://localhost:8081',
     changeOrigin: true,
-    pathRewrite: { '^/registry': '' },
+    pathRewrite: (path) => '/api' + path,
   })
 );
 

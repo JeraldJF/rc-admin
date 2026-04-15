@@ -81,7 +81,7 @@ export default defineConfig(({ mode }) => {
           target: 'http://localhost:8081',
           changeOrigin: true,
           secure: false,
-          rewrite: (path) => path.replace(/^\/registry/, ''),
+          rewrite: (path) => '/api' + path,
           configure: (proxy) => {
             proxy.on('proxyReq', (proxyReq) => {
               proxyReq.removeHeader('Origin');
