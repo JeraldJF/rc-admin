@@ -107,19 +107,17 @@ export default function Callback() {
           }
 
           // Accept Hydra login challenge with the external user's identity
-          const acceptRes = await fetch(
-            `${getConfig().VITE_ORY_HYDRA_ADMIN || 'http://localhost:4445'}/admin/oauth2/auth/requests/login/accept?login_challenge=${loginChallenge}`,
-            {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                subject: userEmail,  // Must match contactDetails.email for registry ownership
-                remember: true,
-                remember_for: 3600,
-                context: { email: userEmail, role: userRole, name: userName },
-              }),
-            }
-          );
+          const acceptRes = await fetch('/auth/hydra-accept-login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              login_challenge: loginChallenge,
+              subject: userEmail,  // Must match contactDetails.email for registry ownership
+              remember: true,
+              remember_for: 3600,
+              context: { email: userEmail, role: userRole, name: userName },
+            }),
+          });
 
           if (!acceptRes.ok) {
             throw new Error(`Failed to accept Hydra login: ${await acceptRes.text()}`);

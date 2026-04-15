@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { getConfig } from '@/lib/config';
 import { rewriteHydraRedirect } from '@/lib/oauth2';
 import { useSearchParams } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
@@ -23,13 +22,7 @@ export default function Consent() {
         try {
             // First, get the consent request to extract user info
             const consentRequest = await fetch(
-                `${getConfig().VITE_ORY_HYDRA_ADMIN || 'http://localhost:4445'}/admin/oauth2/auth/requests/consent?consent_challenge=${consentChallenge}`,
-                {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                }
+                `/auth/hydra-consent-request?consent_challenge=${encodeURIComponent(consentChallenge)}`
             );
 
             if (!consentRequest.ok) {
@@ -43,33 +36,29 @@ export default function Consent() {
             const userRole = consentData.context?.role || sessionStorage.getItem('userRole') || 'employee';
 
             // Accept consent with session claims mapped to top-level
-            const acceptResponse = await fetch(
-                `${getConfig().VITE_ORY_HYDRA_ADMIN || 'http://localhost:4445'}/admin/oauth2/auth/requests/consent/accept?consent_challenge=${consentChallenge}`,
-                {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        grant_scope: ['openid', 'offline_access', 'email', 'profile'],
-                        grant_access_token_audience: [],
-                        remember: true,
-                        remember_for: 3600,
-                        session: {
-                            access_token: {
-                                // These will be at the TOP LEVEL of the JWT, not nested
-                                email: userEmail,
-                                role: [userRole],  // array required — registry reads role via JsonPath as ArrayList
-                            },
-                            id_token: {
-                                email: userEmail,
-                                role: [userRole],
-                                name: consentData.context?.name || userEmail.split('@')[0]
-                            }
+            const acceptResponse = await fetch('/auth/hydra-accept-consent', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    consent_challenge: consentChallenge,
+                    grant_scope: ['openid', 'offline_access', 'email', 'profile'],
+                    grant_access_token_audience: [],
+                    remember: true,
+                    remember_for: 3600,
+                    session: {
+                        access_token: {
+                            // These will be at the TOP LEVEL of the JWT, not nested
+                            email: userEmail,
+                            role: [userRole],  // array required — registry reads role via JsonPath as ArrayList
+                        },
+                        id_token: {
+                            email: userEmail,
+                            role: [userRole],
+                            name: consentData.context?.name || userEmail.split('@')[0]
                         }
-                    }),
-                }
-            );
+                    }
+                }),
+            });
 
             if (!acceptResponse.ok) {
                 throw new Error('Failed to accept consent');
@@ -165,17 +154,15 @@ export default function Consent() {
                                     if (!consentChallenge) return;
                                     setIsLoading(true);
                                     try {
-                                        const rejectResponse = await fetch(
-                                            `${getConfig().VITE_ORY_HYDRA_ADMIN || 'http://localhost:4445'}/admin/oauth2/auth/requests/consent/reject?consent_challenge=${consentChallenge}`,
-                                            {
-                                                method: 'PUT',
-                                                headers: { 'Content-Type': 'application/json' },
-                                                body: JSON.stringify({
-                                                    error: 'access_denied',
-                                                    error_description: 'The user denied the request',
-                                                }),
-                                            }
-                                        );
+                                        const rejectResponse = await fetch('/auth/hydra-reject-consent', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({
+                                                consent_challenge: consentChallenge,
+                                                error: 'access_denied',
+                                                error_description: 'The user denied the request',
+                                            }),
+                                        });
                                         if (rejectResponse.ok) {
                                             const rejectData = await rejectResponse.json();
                                             window.location.href = rejectData.redirect_to;

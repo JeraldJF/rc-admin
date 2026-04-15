@@ -9,8 +9,9 @@ dotenv.config({ path: path.join(__dirname, '../../.env') });
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+// Body parsers are intentionally NOT registered globally — applying them to
+// proxied routes consumes the request stream, so Hydra/Kratos/etc. receive an
+// empty body. They are applied inline only on the routes that actually need them.
 
 // ---------------------------------------------------------------------------
 // Runtime config endpoint
@@ -22,7 +23,6 @@ app.get('/config', (_req: Request, res: Response) => {
     VITE_OAUTH2_CLIENT_ID: process.env.VITE_OAUTH2_CLIENT_ID || '',
     VITE_OAUTH2_REDIRECT_URI: process.env.VITE_OAUTH2_REDIRECT_URI || '',
     VITE_ORY_HYDRA_PUBLIC: process.env.VITE_ORY_HYDRA_PUBLIC || '',
-    VITE_ORY_HYDRA_ADMIN: process.env.VITE_ORY_HYDRA_ADMIN || '',
     VITE_ORY_KRATOS_PUBLIC: process.env.VITE_ORY_KRATOS_PUBLIC || '',
     VITE_EXT_OIDC_CLIENT_ID: process.env.VITE_EXT_OIDC_CLIENT_ID || '',
     VITE_EXT_OIDC_REDIRECT_URI: process.env.VITE_EXT_OIDC_REDIRECT_URI || '',
@@ -34,6 +34,12 @@ app.get('/config', (_req: Request, res: Response) => {
 });
 
 // ---------------------------------------------------------------------------
+// Hydra Admin helper — server-side only, never sent to the browser.
+// ---------------------------------------------------------------------------
+const hydraAdminUrl = () =>
+  (process.env.ORY_HYDRA_ADMIN_URL || 'http://localhost:4445').replace(/\/$/, '');
+
+// ---------------------------------------------------------------------------
 // Auth token endpoints
 // Secrets live here on the server — never in the frontend bundle.
 // ---------------------------------------------------------------------------
@@ -42,7 +48,7 @@ app.get('/config', (_req: Request, res: Response) => {
 // Handles Hydra OAuth2 authorization_code exchange and refresh_token grant.
 // The client only sends grant_type + code/redirect_uri or refresh_token;
 // the server adds client_id + client_secret before forwarding to Hydra.
-app.post('/auth/token', async (req: Request, res: Response) => {
+app.post('/auth/token', express.urlencoded({ extended: false }), express.json(), async (req: Request, res: Response) => {
   const { grant_type, code, redirect_uri, refresh_token } = req.body;
 
   const clientId = process.env.VITE_OAUTH2_CLIENT_ID;
@@ -91,7 +97,7 @@ app.post('/auth/token', async (req: Request, res: Response) => {
 // POST /auth/ext-token
 // Handles authorization_code exchange with the external OIDC provider.
 // The client sends only code + redirect_uri; the server adds client credentials.
-app.post('/auth/ext-token', async (req: Request, res: Response) => {
+app.post('/auth/ext-token', express.urlencoded({ extended: false }), express.json(), async (req: Request, res: Response) => {
   const { code, redirect_uri } = req.body;
 
   const clientId = process.env.VITE_EXT_OIDC_CLIENT_ID;
@@ -129,19 +135,119 @@ app.post('/auth/ext-token', async (req: Request, res: Response) => {
 });
 
 // ---------------------------------------------------------------------------
+// Hydra Admin endpoints — server-side only, Hydra admin URL never reaches browser.
+// ---------------------------------------------------------------------------
+
+// GET /auth/hydra-consent-request?consent_challenge=...
+app.get('/auth/hydra-consent-request', async (req: Request, res: Response) => {
+  const consent_challenge = req.query.consent_challenge as string;
+  if (!consent_challenge) {
+    res.status(400).json({ error: 'consent_challenge is required' });
+    return;
+  }
+  try {
+    const r = await fetch(
+      `${hydraAdminUrl()}/admin/oauth2/auth/requests/consent?consent_challenge=${encodeURIComponent(consent_challenge)}`
+    );
+    res.status(r.status).json(await r.json());
+  } catch (err) {
+    console.error('[/auth/hydra-consent-request] Hydra request failed:', err);
+    res.status(502).json({ error: 'Failed to reach Hydra admin' });
+  }
+});
+
+// POST /auth/hydra-accept-login
+app.post('/auth/hydra-accept-login', express.json(), async (req: Request, res: Response) => {
+  const { login_challenge, subject, remember, remember_for, context } = req.body;
+  if (!login_challenge || !subject) {
+    res.status(400).json({ error: 'login_challenge and subject are required' });
+    return;
+  }
+  try {
+    const r = await fetch(
+      `${hydraAdminUrl()}/admin/oauth2/auth/requests/login/accept?login_challenge=${encodeURIComponent(login_challenge)}`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subject, remember, remember_for, context }),
+      }
+    );
+    res.status(r.status).json(await r.json());
+  } catch (err) {
+    console.error('[/auth/hydra-accept-login] Hydra request failed:', err);
+    res.status(502).json({ error: 'Failed to reach Hydra admin' });
+  }
+});
+
+// POST /auth/hydra-accept-consent
+app.post('/auth/hydra-accept-consent', express.json(), async (req: Request, res: Response) => {
+  const { consent_challenge, ...body } = req.body;
+  if (!consent_challenge) {
+    res.status(400).json({ error: 'consent_challenge is required' });
+    return;
+  }
+  try {
+    const r = await fetch(
+      `${hydraAdminUrl()}/admin/oauth2/auth/requests/consent/accept?consent_challenge=${encodeURIComponent(consent_challenge)}`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }
+    );
+    res.status(r.status).json(await r.json());
+  } catch (err) {
+    console.error('[/auth/hydra-accept-consent] Hydra request failed:', err);
+    res.status(502).json({ error: 'Failed to reach Hydra admin' });
+  }
+});
+
+// POST /auth/hydra-reject-consent
+app.post('/auth/hydra-reject-consent', express.json(), async (req: Request, res: Response) => {
+  const { consent_challenge, ...body } = req.body;
+  if (!consent_challenge) {
+    res.status(400).json({ error: 'consent_challenge is required' });
+    return;
+  }
+  try {
+    const r = await fetch(
+      `${hydraAdminUrl()}/admin/oauth2/auth/requests/consent/reject?consent_challenge=${encodeURIComponent(consent_challenge)}`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }
+    );
+    res.status(r.status).json(await r.json());
+  } catch (err) {
+    console.error('[/auth/hydra-reject-consent] Hydra request failed:', err);
+    res.status(502).json({ error: 'Failed to reach Hydra admin' });
+  }
+});
+
+// POST /auth/hydra-accept-logout
+app.post('/auth/hydra-accept-logout', express.json(), async (req: Request, res: Response) => {
+  const { logout_challenge } = req.body;
+  if (!logout_challenge) {
+    res.status(400).json({ error: 'logout_challenge is required' });
+    return;
+  }
+  try {
+    const r = await fetch(
+      `${hydraAdminUrl()}/admin/oauth2/auth/requests/logout/accept?logout_challenge=${encodeURIComponent(logout_challenge)}`,
+      { method: 'PUT' }
+    );
+    res.status(r.status).json(await r.json());
+  } catch (err) {
+    console.error('[/auth/hydra-accept-logout] Hydra request failed:', err);
+    res.status(502).json({ error: 'Failed to reach Hydra admin' });
+  }
+});
+
+// ---------------------------------------------------------------------------
 // Proxy routes — mirrors vite.config.ts proxy config so the same paths work
 // in production. Order matters: more specific paths must be registered first.
 // ---------------------------------------------------------------------------
-
-// Ory Hydra Admin API
-app.use(
-  '/ory/hydra-admin',
-  createProxyMiddleware({
-    target: process.env.ORY_HYDRA_ADMIN_URL || 'http://localhost:4445',
-    changeOrigin: true,
-    pathRewrite: { '^/ory/hydra-admin': '' },
-  })
-);
 
 // Ory Hydra Public API (registered after hydra-admin to avoid prefix clash)
 app.use(

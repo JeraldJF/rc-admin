@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 
-import { getConfig } from '@/lib/config';
 
 export default function Logout() {
   const [searchParams] = useSearchParams();
@@ -18,10 +17,11 @@ export default function Logout() {
     sessionStorage.clear();
 
     // Step 2: accept the Hydra logout challenge (invalidates Hydra tokens)
-    fetch(
-      `${getConfig().VITE_ORY_HYDRA_ADMIN}/admin/oauth2/auth/requests/logout/accept?logout_challenge=${logoutChallenge}`,
-      { method: 'PUT' }
-    )
+    fetch('/auth/hydra-accept-logout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ logout_challenge: logoutChallenge }),
+    })
       .then(() => {
         // Step 3: go directly to the React login page
         window.location.href = '/login';

@@ -33,19 +33,17 @@ const Login = () => {
       sessionStorage.setItem('employeeOsid', osid);
     }
 
-    const res = await fetch(
-      `${getConfig().VITE_ORY_HYDRA_ADMIN}/admin/oauth2/auth/requests/login/accept?login_challenge=${challenge}`,
-      {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          subject: userEmail,
-          remember: true,
-          remember_for: 3600,
-          context: { email: userEmail, role: userRole, name: traits?.name },
-        }),
-      }
-    );
+    const res = await fetch('/auth/hydra-accept-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        login_challenge: challenge,
+        subject: userEmail,
+        remember: true,
+        remember_for: 3600,
+        context: { email: userEmail, role: userRole, name: traits?.name },
+      }),
+    });
 
     if (res.ok) {
       const { redirect_to } = await res.json();
