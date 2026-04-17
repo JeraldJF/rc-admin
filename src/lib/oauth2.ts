@@ -36,7 +36,7 @@ export const rewriteHydraRedirect = (redirectTo: string): string => {
 };
 
 export const oauth2Service = {
-  // Start OAuth2 flow
+  // Start OAuth2 flow — redirects to Hydra authorization endpoint
   startAuthFlow() {
     const { VITE_OAUTH2_CLIENT_ID: clientId, VITE_OAUTH2_REDIRECT_URI: redirectUri, VITE_ORY_HYDRA_PUBLIC: hydraPublic } = getConfig();
 
@@ -54,48 +54,5 @@ export const oauth2Service = {
     authUrl.searchParams.append('prompt', 'login');
 
     window.location.href = authUrl.toString();
-  },
-
-  // Exchange authorization code for tokens.
-  // Calls our server-side /auth/token endpoint so the client_secret never
-  // appears in the browser bundle.
-  async exchangeCodeForToken(code: string): Promise<{ access_token: string, refresh_token: string, id_token?: string }> {
-    const redirectUri = getConfig().VITE_OAUTH2_REDIRECT_URI || 'http://localhost:3000/callback';
-
-    const response = await fetch('/auth/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'authorization_code',
-        code,
-        redirect_uri: redirectUri,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Token exchange failed:', errorText);
-      throw new Error(`Token exchange failed: ${errorText}`);
-    }
-
-    return await response.json();
-  },
-
-  // Refresh access token.
-  // Calls our server-side /auth/token endpoint so the client_secret stays
-  // server-side only.
-  async refreshToken(refreshToken: string): Promise<{ access_token: string }> {
-    const response = await fetch('/auth/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'refresh_token',
-        refresh_token: refreshToken,
-      }),
-    });
-
-    if (!response.ok) throw new Error('Token refresh failed');
-
-    return await response.json();
   },
 };

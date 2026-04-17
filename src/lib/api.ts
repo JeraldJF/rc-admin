@@ -2,28 +2,24 @@ import { getConfig } from './config';
 
 const getBaseUrl = () => getConfig().VITE_API_BASE_URL || '';
 
-// Token management
-export const getAuthToken = (): string | null => {
-  return sessionStorage.getItem("accessToken");
-};
-
-// Auto-logout on 401 error
-const handleUnauthorized = () => {
+// Auto-logout on 401 — destroys the server session before redirecting
+const handleUnauthorized = async () => {
+  try {
+    await fetch('/auth/logout', { method: 'POST', credentials: 'include' });
+  } catch { /* ignore */ }
   sessionStorage.clear();
   window.location.href = "/login";
 };
 
 // Search Admin by email
 export const searchAdminByEmail = async (email: string) => {
-  const token = getAuthToken();
-
   const response = await fetch(`${getBaseUrl()}/registry/api/v1/Admin/search`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "Accept": "application/json",
-      "Authorization": `Bearer ${token}`,
     },
+    credentials: "include",
     body: JSON.stringify({
       filters: { email },
     }),
@@ -39,14 +35,12 @@ export const searchAdminByEmail = async (email: string) => {
 
 // Get Admin by ID
 export const getAdminById = async (osid: string) => {
-  const token = getAuthToken();
-
   const response = await fetch(`${getBaseUrl()}/registry/api/v1/Admin/${osid}`, {
     method: "GET",
     headers: {
       "Accept": "application/json",
-      "Authorization": `Bearer ${token}`,
     },
+    credentials: "include",
   });
 
   if (!response.ok) {

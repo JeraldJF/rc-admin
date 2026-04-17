@@ -15,14 +15,26 @@ export const Sidebar = () => {
     setUserRole(role);
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     toast({
       title: "Logging out...",
       description: "Ending your session...",
     });
 
-    // Read id_token before clearing storage (needed for Hydra OIDC logout)
-    const idToken = sessionStorage.getItem('id_token');
+    // Fetch idToken from server session before destroying it
+    let idToken: string | null = null;
+    try {
+      const meRes = await fetch('/auth/me', { credentials: 'include' });
+      if (meRes.ok) {
+        const me = await meRes.json();
+        idToken = me.idToken || null;
+      }
+    } catch { /* ignore */ }
+
+    // Destroy the server session
+    try {
+      await fetch('/auth/logout', { method: 'POST', credentials: 'include' });
+    } catch { /* ignore */ }
 
     localStorage.clear();
     sessionStorage.clear();

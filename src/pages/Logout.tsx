@@ -13,22 +13,28 @@ export default function Logout() {
       return;
     }
 
-    // Step 1: clear all local session data immediately
-    sessionStorage.clear();
+    const doLogout = async () => {
+      // Destroy the Express session first so the database record is cleaned up
+      try {
+        await fetch('/auth/logout', { method: 'POST', credentials: 'include' });
+      } catch { /* ignore */ }
 
-    // Step 2: accept the Hydra logout challenge (invalidates Hydra tokens)
-    fetch('/auth/hydra-accept-logout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ logout_challenge: logoutChallenge }),
-    })
-      .then(() => {
-        // Step 3: go directly to the React login page
-        window.location.href = '/login';
-      })
-      .catch(() => {
-        window.location.href = '/login';
-      });
+      // Clear local session state
+      sessionStorage.clear();
+
+      // Accept the Hydra logout challenge (invalidates Hydra tokens)
+      try {
+        await fetch('/auth/hydra-accept-logout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ logout_challenge: logoutChallenge }),
+        });
+      } catch { /* ignore */ }
+
+      window.location.href = '/login';
+    };
+
+    doLogout();
   }, [logoutChallenge]);
 
   return (

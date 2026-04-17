@@ -1,30 +1,28 @@
-import { getAuthToken } from './api';
-
 import { getConfig } from './config';
 
 const getBaseUrl = () => getConfig().VITE_API_BASE_URL || '';
 
-// Auto-logout on 401 error
-const handleUnauthorized = () => {
-    sessionStorage.clear();
-    window.location.href = "/login";
+// Auto-logout on 401 — destroys the server session before redirecting
+const handleUnauthorized = async () => {
+  try {
+    await fetch('/auth/logout', { method: 'POST', credentials: 'include' });
+  } catch { /* ignore */ }
+  sessionStorage.clear();
+  window.location.href = "/login";
 };
 
 // Employee API Functions
 
 // Search all Employees (Admin)
 export const searchAllEmployees = async () => {
-    const token = getAuthToken();
-
-    // Helper to perform search
     const performSearch = async (payload: any) => {
         const response = await fetch(`${getBaseUrl()}/registry/api/v1/Employee/search`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
                 "Accept": "application/json",
-                "Authorization": `Bearer ${token}`,
             },
+            credentials: "include",
             body: JSON.stringify(payload),
         });
 
@@ -36,22 +34,14 @@ export const searchAllEmployees = async () => {
     };
 
     try {
-        // Attempt 1: Standard with limit (Best Practice)
-        return await performSearch({
-            filters: {},
-            limit: 1000,
-            offset: 0
-        });
+        return await performSearch({ filters: {}, limit: 1000, offset: 0 });
     } catch (error) {
         try {
-            // Attempt 2: Minimal payload
             return await performSearch({ filters: {} });
         } catch (e) {
             try {
-                // Attempt 3: Filter by role (flat schema)
                 return await performSearch({ filters: { "role": { eq: "employee" } } });
             } catch (e2) {
-                // Attempt 4: Osid exists
                 return await performSearch({ filters: { "osid": { neq: "null" } } });
             }
         }
@@ -60,15 +50,13 @@ export const searchAllEmployees = async () => {
 
 // Search Employee by personal identification (cédula)
 export const searchEmployeeByPersonalId = async (personalId: string) => {
-    const token = getAuthToken();
-
     const response = await fetch(`${getBaseUrl()}/registry/api/v1/Employee/search`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
             "Accept": "application/json",
-            "Authorization": `Bearer ${token}`,
         },
+        credentials: "include",
         body: JSON.stringify({ filters: { "personalIdentification": { eq: personalId } } }),
     });
 
@@ -81,17 +69,14 @@ export const searchEmployeeByPersonalId = async (personalId: string) => {
 
 // Search Employee by email
 export const searchEmployeeByEmail = async (email: string) => {
-    const token = getAuthToken();
-
-    // Helper to perform search
     const performSearch = async (filterObj: any) => {
         const response = await fetch(`${getBaseUrl()}/registry/api/v1/Employee/search`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
                 "Accept": "application/json",
-                "Authorization": `Bearer ${token}`,
             },
+            credentials: "include",
             body: JSON.stringify({ filters: filterObj }),
         });
 
@@ -107,28 +92,23 @@ export const searchEmployeeByEmail = async (email: string) => {
 
 // Get Employee by ID
 export const getEmployeeById = async (osid: string) => {
-    const token = getAuthToken();
-
     const response = await fetch(`${getBaseUrl()}/registry/api/v1/Employee/${osid}`, {
         method: "GET",
         headers: {
             "Accept": "application/json",
-            "Authorization": `Bearer ${token}`,
         },
+        credentials: "include",
     });
 
     if (!response.ok) {
-        if (response.status === 401) {
-            handleUnauthorized();
-        }
+        if (response.status === 401) handleUnauthorized();
         throw new Error("Failed to fetch employee details");
     }
 
-    const data = await response.json();
-    return data;
+    return await response.json();
 };
 
-// Self-register Employee via invite (no admin token required — public endpoint)
+// Self-register Employee via invite (no session required — public endpoint)
 // Returns { isDuplicate: true } when the record already exists (duplicate email).
 export const inviteEmployee = async (employeeData: {
     fullName: string;
@@ -159,7 +139,7 @@ export const inviteEmployee = async (employeeData: {
     return { result: data };
 };
 
-// Add Employee (Admin token)
+// Add Employee (Admin)
 export const addEmployee = async (employeeData: {
     fullName: string;
     email: string;
@@ -175,36 +155,30 @@ export const addEmployee = async (employeeData: {
     statusName?: string;
     salary?: string;
 }) => {
-    const token = getAuthToken();
-
     const response = await fetch(`${getBaseUrl()}/registry/api/v1/Employee`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
             "Accept": "application/json",
-            "Authorization": `Bearer ${token}`,
         },
+        credentials: "include",
         body: JSON.stringify(employeeData),
     });
 
     if (!response.ok) {
-        if (response.status === 401) {
-            handleUnauthorized();
-        }
+        if (response.status === 401) handleUnauthorized();
         throw new Error("Failed to add employee");
     }
 
-    const data = await response.json();
-    return data;
+    return await response.json();
 };
 
-// Credential service config — sourced from Vite environment variables
-// Required env vars: VITE_ISSUER_DID, VITE_SCHEMA_ID, VITE_SCHEMA_VERSION, VITE_TEMPLATE_ID
+// Credential service config — sourced from runtime config
 const getIssuerDid = () => getConfig().VITE_ISSUER_DID || '';
 const getSchemaId = () => getConfig().VITE_SCHEMA_ID || '';
 const getSchemaVersion = () => getConfig().VITE_SCHEMA_VERSION || '';
 const getTemplateId = () => getConfig().VITE_TEMPLATE_ID || '';
-// JSON-LD context required for Ed25519 signing — fields must map to absolute IRIs
+
 const VC_CONTEXT = [
     "https://www.w3.org/2018/credentials/v1",
     {
@@ -236,13 +210,15 @@ const VC_CONTEXT = [
     "https://w3id.org/security/suites/ed25519-2020/v1",
 ];
 
-// Check if a certificate has already been issued for this employee (by admin)
+// Check if a certificate has already been issued for this employee
 export const checkCertificateIssued = async (osid: string): Promise<{ issued: boolean; credentialId: string | null }> => {
-    const token = getAuthToken();
     try {
         const tagsRes = await fetch(
             `${getBaseUrl()}/credential/credentials?tags=${encodeURIComponent(osid)}`,
-            { headers: { "Accept": "application/json", "Authorization": `Bearer ${token}` } }
+            {
+                headers: { "Accept": "application/json" },
+                credentials: "include",
+            }
         );
         if (tagsRes.ok) {
             const creds = await tagsRes.json();
@@ -259,10 +235,8 @@ export const checkCertificateIssued = async (osid: string): Promise<{ issued: bo
     return { issued: false, credentialId: null };
 };
 
-// Issue a certificate for an employee — admin action only. Returns the new credentialId.
+// Issue a certificate for an employee — admin action only
 export const issueEmployeeCertificate = async (osid: string): Promise<string> => {
-    const token = getAuthToken();
-
     const empRes = await getEmployeeById(osid);
     const empData = empRes?.Employee || empRes;
     if (!empData) throw new Error("Failed to fetch employee data for credential issuance");
@@ -305,7 +279,8 @@ export const issueEmployeeCertificate = async (osid: string): Promise<string> =>
 
     const issueRes = await fetch(`${getBaseUrl()}/credential/credentials/issue`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "Accept": "application/json", "Authorization": `Bearer ${token}` },
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        credentials: "include",
         body: JSON.stringify(issuePayload),
     });
     if (!issueRes.ok) {
@@ -318,11 +293,8 @@ export const issueEmployeeCertificate = async (osid: string): Promise<string> =>
     return credentialId;
 };
 
-// Download Employee Certificate as PDF. Certificate must have been issued by admin first.
+// Download Employee Certificate as PDF
 export const downloadEmployeeCertificate = async (osid: string): Promise<Blob> => {
-    const token = getAuthToken();
-
-    // Find existing credential — do NOT auto-issue
     const { issued, credentialId } = await checkCertificateIssued(osid);
     if (!issued || !credentialId) {
         throw new Error("No certificate has been issued for this employee yet. Please contact your administrator.");
@@ -335,8 +307,8 @@ export const downloadEmployeeCertificate = async (osid: string): Promise<Blob> =
             headers: {
                 "Accept": "application/pdf",
                 "templateId": getTemplateId(),
-                "Authorization": `Bearer ${token}`,
             },
+            credentials: "include",
         }
     );
     if (!pdfRes.ok) {
@@ -346,7 +318,7 @@ export const downloadEmployeeCertificate = async (osid: string): Promise<Blob> =
     return await pdfRes.blob();
 };
 
-// Update Employee (Admin token)
+// Update Employee (Admin)
 export const updateEmployee = async (employeeId: string, employeeData: Partial<{
     fullName?: string;
     email?: string;
@@ -362,25 +334,20 @@ export const updateEmployee = async (employeeId: string, employeeData: Partial<{
     statusName?: string;
     salary?: string;
 }>) => {
-    const token = getAuthToken();
-
     const response = await fetch(`${getBaseUrl()}/registry/api/v1/Employee/${employeeId}`, {
         method: "PUT",
         headers: {
             "Content-Type": "application/json",
             "Accept": "application/json",
-            "Authorization": `Bearer ${token}`,
         },
+        credentials: "include",
         body: JSON.stringify(employeeData),
     });
 
     if (!response.ok) {
-        if (response.status === 401) {
-            handleUnauthorized();
-        }
+        if (response.status === 401) handleUnauthorized();
         throw new Error("Failed to update employee");
     }
 
-    const data = await response.json();
-    return data;
+    return await response.json();
 };

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { oauth2Service, rewriteHydraRedirect } from '../lib/oauth2';
+import { rewriteHydraRedirect } from '../lib/oauth2';
 import { lookupEmployeeRole } from '../lib/roleService';
 import { getConfig } from '../lib/config';
 
@@ -16,7 +16,6 @@ export default function Callback() {
       const error = searchParams.get('error');
       const errorDescription = searchParams.get('error_description');
 
-      // Check for OAuth2 errors first
       if (error) {
         setError(`OAuth2 Error: ${error} - ${errorDescription || 'Unknown error'}`);
         return;
@@ -38,8 +37,8 @@ export default function Callback() {
         try {
           sessionStorage.removeItem('external_oidc_state');
 
-          // Exchange code via our server-side endpoint so client_id + client_secret
-          // never appear in the browser bundle.
+          // Server exchanges the code, calls ext userinfo, and returns merged claims.
+          // The ext access_token never leaves the server.
           const tokenResponse = await fetch('/auth/ext-token', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -47,72 +46,31 @@ export default function Callback() {
               code,
               redirect_uri: getConfig().VITE_EXT_OIDC_REDIRECT_URI || 'http://localhost:3000/callback',
             }),
+            credentials: 'include',
           });
 
           if (!tokenResponse.ok) {
             throw new Error(`External token exchange failed: ${await tokenResponse.text()}`);
           }
 
-          const extTokens = await tokenResponse.json();
+          const { email: userEmail, name: userName } = await tokenResponse.json();
 
-          // Decode external id_token (always has sub; may have email/name if 'email profile' scope granted)
-          let extIdClaims: any = {};
-          if (extTokens.id_token) {
-            try {
-              const parts = extTokens.id_token.split('.');
-              const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-              extIdClaims = JSON.parse(decodeURIComponent(atob(b64).split('').map(c =>
-                '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
-              ).join('')));
-            } catch (e) {
-              // Could not decode external id_token
-            }
-          }
-
-          // Get user info from external IdP
-          const userInfoResponse = await fetch('/ext-oidc/userinfo', {
-            headers: { Authorization: `Bearer ${extTokens.access_token}` },
-          });
-
-          let userInfo: any = {};
-          if (userInfoResponse.ok) {
-            userInfo = await userInfoResponse.json();
-          }
-
-          // Try all possible field names different IdPs use for email and subject
-          let userEmail = userInfo.email || extIdClaims.email
-            || userInfo.preferred_username || extIdClaims.preferred_username
-            || userInfo.login || userInfo.username || userInfo.uid
-            || extIdClaims.sub || userInfo.sub
-            || 'unknown';
-          // Normalize: if the IdP returned a pure numeric personal ID (no @),
-          // append @rc.local so it matches the RC registry record.
-          if (/^\d+$/.test(userEmail)) {
-            userEmail = `${userEmail}@rc.local`;
-          }
-          const userName = userInfo.name || extIdClaims.name
-            || [userInfo.given_name, userInfo.family_name].filter(Boolean).join(' ')
-            || [extIdClaims.given_name, extIdClaims.family_name].filter(Boolean).join(' ')
-            || '';
-
-          // Look up employee role and osid from Registry API
-          const { role: userRole, osid: employeeOsid } = await lookupEmployeeRole(userEmail);
-          if (employeeOsid) {
-            sessionStorage.setItem('employeeOsid', employeeOsid);
-          }
+          // Role lookup is skipped here — no Hydra token exists yet at this stage.
+          // The real role is fetched after the full Hydra flow completes (Step 15).
+          // Per design Q2: default to 'employee'; Hydra login context carries it forward.
+          const userRole = 'employee';
 
           const loginChallenge = sessionStorage.getItem('login_challenge');
           if (!loginChallenge) {
             throw new Error('Login challenge not found. Please restart the login flow.');
           }
 
-          // Accept Hydra login challenge with the external user's identity
           const acceptRes = await fetch('/auth/hydra-accept-login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               login_challenge: loginChallenge,
-              subject: userEmail,  // Must match contactDetails.email for registry ownership
+              subject: userEmail,
               remember: true,
               remember_for: 3600,
               context: { email: userEmail, role: userRole, name: userName },
@@ -130,7 +88,6 @@ export default function Callback() {
           sessionStorage.setItem('userRole', userRole);
           if (userName) sessionStorage.setItem('userName', userName);
 
-          // Follow Hydra's redirect via the proxy so CSRF cookie origin matches
           window.location.href = rewriteHydraRedirect(redirect_to);
         } catch (err: any) {
           console.error('External OIDC callback error:', err);
@@ -147,106 +104,48 @@ export default function Callback() {
       }
 
       try {
-        // Exchange code for tokens
-        const tokens = await oauth2Service.exchangeCodeForToken(code);
-
-        // Clear any stale tokens before storing new ones
-        sessionStorage.removeItem('accessToken');
-        sessionStorage.removeItem('refreshToken');
-        sessionStorage.removeItem('id_token');
-
-        // Store tokens
-        sessionStorage.setItem('accessToken', tokens.access_token);
-        sessionStorage.setItem('refreshToken', tokens.refresh_token);
-        sessionStorage.setItem('isLoggedIn', 'true');
-        if (tokens.id_token) {
-          sessionStorage.setItem('id_token', tokens.id_token);
-        }
-
-        // Clean up
         sessionStorage.removeItem('oauth2_state');
 
-        // Helper: decode a JWT payload
-        const decodeJwt = (token: string) => {
-          const parts = token.split('.');
-          if (parts.length !== 3) return null;
-          try {
-            const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-            const json = decodeURIComponent(atob(base64).split('').map(c =>
-              '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
-            ).join(''));
-            return JSON.parse(json);
-          } catch { return null; }
-        };
+        // Server exchanges the code, calls Hydra userinfo, stores tokens in the
+        // server session, and returns only {email, name} — no tokens in the browser.
+        const tokenRes = await fetch('/auth/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            grant_type: 'authorization_code',
+            code,
+            redirect_uri: getConfig().VITE_OAUTH2_REDIRECT_URI || 'http://localhost:3000/callback',
+          }),
+          credentials: 'include',
+        });
 
-        const accessPayload = decodeJwt(tokens.access_token);
-        const idPayload = tokens.id_token ? decodeJwt(tokens.id_token) : null;
-
-        // Call Hydra userinfo endpoint for ground-truth claims
-        let userInfoClaims: any = {};
-        try {
-          const uiRes = await fetch('/ory/hydra/userinfo', {
-            headers: { Authorization: `Bearer ${tokens.access_token}` },
-          });
-          if (uiRes.ok) {
-            userInfoClaims = await uiRes.json();
-          }
-        } catch (e) {
-          // UserInfo fetch failed
+        if (!tokenRes.ok) {
+          throw new Error(`Token exchange failed: ${await tokenRes.text()}`);
         }
 
-        // Merge: prefer non-"unknown" values; priority: userinfo > id_token > access_token > sessionStorage
-        const pick = (...vals: (string | undefined | null)[]) =>
-          vals.find(v => v && v !== 'unknown') ?? '';
+        const { email, name } = await tokenRes.json();
 
-        const email = pick(
-          userInfoClaims.email,
-          idPayload?.email,
-          accessPayload?.email, accessPayload?.ext?.email,
-          sessionStorage.getItem('userEmail'),
-        );
-        const name = pick(
-          userInfoClaims.name,
-          idPayload?.name,
-          accessPayload?.name,
-          sessionStorage.getItem('userName'),
-        );
-        let role = pick(
-          userInfoClaims.role,
-          idPayload?.role,
-          accessPayload?.role, accessPayload?.ext?.role,
-          sessionStorage.getItem('userRole'),
-        );
-
-        console.log('[Callback] Initial role from JWT/sessionStorage:', role);
-
+        // Store non-sensitive display values — no tokens in sessionStorage
+        sessionStorage.setItem('isLoggedIn', 'true');
         if (email) sessionStorage.setItem('userEmail', email);
         if (name) sessionStorage.setItem('userName', name);
 
-        // Look up role and osid from Registry API (primary source of truth)
+        // Look up role and osid from Registry API — the session is now set so the
+        // proxy will inject the auth token automatically.
         console.log('[Callback] Looking up role for email:', email);
         const { role: rcRole, osid: rcOsid } = await lookupEmployeeRole(email);
         console.log('[Callback] Registry lookup result:', { rcRole, rcOsid });
 
-        if (rcOsid) {
-          sessionStorage.setItem('employeeOsid', rcOsid);
-        }
-
-        // Use registry role if found, otherwise fall back to JWT role
-        role = (rcRole || role || 'employee').toLowerCase();
+        if (rcOsid) sessionStorage.setItem('employeeOsid', rcOsid);
+        const role = (rcRole || 'employee').toLowerCase();
         sessionStorage.setItem('userRole', role);
 
-        console.log('[Callback] Final navigation decision:', { role, rcRole, email });
-        console.log('[Callback] SessionStorage userRole:', sessionStorage.getItem('userRole'));
-
+        console.log('[Callback] Final navigation decision:', { role, email });
         if (role === 'admin') {
-          console.log('[Callback] Navigating to /registry (admin)');
           navigate('/registry');
         } else {
-          console.log('[Callback] Navigating to /profile (employee)');
           navigate('/profile');
         }
-        return;
       } catch (err) {
         console.error('Token exchange error:', err);
         setError('Failed to complete login');
@@ -257,7 +156,6 @@ export default function Callback() {
   }, [searchParams, navigate]);
 
   if (error) {
-    // Handle "User Denied Access" gracefully
     if (error.includes('access_denied')) {
       return (
         <div className="flex items-center justify-center min-h-screen bg-slate-50">
@@ -280,7 +178,6 @@ export default function Callback() {
       );
     }
 
-    // Default error view
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-red-600 bg-red-50 p-4 rounded border border-red-200">
