@@ -14,8 +14,6 @@ import { lookupEmployeeRole } from '@/lib/roleService';
 //   3. External IdP authenticates → redirects to /callback (Callback.tsx)
 //   4. No challenge anywhere → show landing page, button starts fresh Hydra flow
 
-import { getConfig } from '@/lib/config';
-const EXT_AUTH_URL = 'https://cuenta.digital.gob.do/oauth2/auth';
 const EXT_IDP_NAME = 'cuenta.digital.gob.do';
 
 const Login = () => {
@@ -55,18 +53,7 @@ const Login = () => {
   };
 
   const redirectToExternalIdP = () => {
-    const extState = 'ext_' + Math.random().toString(36).substring(2, 15)
-                            + Math.random().toString(36).substring(2, 15);
-    sessionStorage.setItem('external_oidc_state', extState);
-
-    const authUrl = new URL(EXT_AUTH_URL);
-    authUrl.searchParams.set('client_id',     getConfig().VITE_EXT_OIDC_CLIENT_ID);
-    authUrl.searchParams.set('redirect_uri',  getConfig().VITE_EXT_OIDC_REDIRECT_URI || 'http://localhost:3000/callback');
-    authUrl.searchParams.set('response_type', 'code');
-    authUrl.searchParams.set('scope',         'openid offline_access email profile');
-    authUrl.searchParams.set('state',         extState);
-
-    window.location.href = authUrl.toString();
+    window.location.href = '/auth/ext-redirect';
   };
 
   useEffect(() => {

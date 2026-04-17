@@ -16,8 +16,6 @@ function configEndpointPlugin(env: Record<string, string>) {
           VITE_OAUTH2_REDIRECT_URI: env.VITE_OAUTH2_REDIRECT_URI || '',
           VITE_ORY_HYDRA_PUBLIC:    env.VITE_ORY_HYDRA_PUBLIC    || '',
           VITE_ORY_KRATOS_PUBLIC:   env.VITE_ORY_KRATOS_PUBLIC   || '',
-          VITE_EXT_OIDC_CLIENT_ID:  env.VITE_EXT_OIDC_CLIENT_ID  || '',
-          VITE_EXT_OIDC_REDIRECT_URI: env.VITE_EXT_OIDC_REDIRECT_URI || '',
           VITE_ISSUER_DID:          env.VITE_ISSUER_DID          || '',
           VITE_SCHEMA_ID:           env.VITE_SCHEMA_ID           || '',
           VITE_SCHEMA_VERSION:      env.VITE_SCHEMA_VERSION      || '',

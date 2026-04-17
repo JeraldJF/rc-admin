@@ -4,6 +4,7 @@ import path from 'path';
 import dotenv from 'dotenv';
 import session from 'express-session';
 import connectPg from 'connect-pg-simple';
+import crypto from 'crypto';
 
 // Load .env from project root (two levels up from server/src/)
 dotenv.config({ path: path.join(__dirname, '../../.env') });
@@ -19,6 +20,7 @@ declare module 'express-session' {
     expiresAt: number;  // Unix ms — when the access token expires
     userEmail: string;
     userName: string;
+    extOidcState?: string;
   }
 }
 
@@ -64,13 +66,38 @@ app.get('/config', (_req: Request, res: Response) => {
     VITE_OAUTH2_REDIRECT_URI: process.env.VITE_OAUTH2_REDIRECT_URI || '',
     VITE_ORY_HYDRA_PUBLIC: process.env.VITE_ORY_HYDRA_PUBLIC || '',
     VITE_ORY_KRATOS_PUBLIC: process.env.VITE_ORY_KRATOS_PUBLIC || '',
-    VITE_EXT_OIDC_CLIENT_ID: process.env.VITE_EXT_OIDC_CLIENT_ID || '',
-    VITE_EXT_OIDC_REDIRECT_URI: process.env.VITE_EXT_OIDC_REDIRECT_URI || '',
     VITE_ISSUER_DID: process.env.VITE_ISSUER_DID || '',
     VITE_SCHEMA_ID: process.env.VITE_SCHEMA_ID || '',
     VITE_SCHEMA_VERSION: process.env.VITE_SCHEMA_VERSION || '',
     VITE_TEMPLATE_ID: process.env.VITE_TEMPLATE_ID || '',
   });
+});
+
+// ---------------------------------------------------------------------------
+// External OIDC redirect — server builds the auth URL so client_id/redirect_uri
+// never need to be sent to the browser.
+// ---------------------------------------------------------------------------
+app.get('/auth/ext-redirect', (req: Request, res: Response) => {
+  const clientId = process.env.EXT_OIDC_CLIENT_ID;
+  const redirectUri = process.env.EXT_OIDC_REDIRECT_URI;
+  const extOidcBaseUrl = (process.env.EXT_OIDC_BASE_URL || 'https://cuenta.digital.gob.do').replace(/\/$/, '');
+
+  if (!clientId || !redirectUri) {
+    res.status(500).json({ error: 'External OIDC client not configured on server' });
+    return;
+  }
+
+  const state = 'ext_' + crypto.randomBytes(24).toString('base64url');
+  req.session.extOidcState = state;
+
+  const authUrl = new URL(`${extOidcBaseUrl}/oauth2/auth`);
+  authUrl.searchParams.set('client_id', clientId);
+  authUrl.searchParams.set('redirect_uri', redirectUri);
+  authUrl.searchParams.set('response_type', 'code');
+  authUrl.searchParams.set('scope', 'openid offline_access email profile');
+  authUrl.searchParams.set('state', state);
+
+  res.redirect(authUrl.toString());
 });
 
 // ---------------------------------------------------------------------------
@@ -290,19 +317,27 @@ app.post('/auth/token', express.urlencoded({ extended: false }), express.json(),
 // userinfo call server-side, stores interim identity in session, and returns
 // only { email, name, sub } to the browser.
 app.post('/auth/ext-token', express.urlencoded({ extended: false }), express.json(), async (req: Request, res: Response) => {
-  const { code, redirect_uri } = req.body;
+  const { code, state } = req.body;
 
-  const clientId = process.env.VITE_EXT_OIDC_CLIENT_ID;
+  const expectedState = req.session.extOidcState;
+  if (!state || !expectedState || state !== expectedState) {
+    res.status(400).json({ error: 'Invalid state parameter - possible CSRF attack' });
+    return;
+  }
+  req.session.extOidcState = undefined;
+
+  const clientId = process.env.EXT_OIDC_CLIENT_ID;
   const clientSecret = process.env.EXT_OIDC_CLIENT_SECRET;
+  const redirectUri = process.env.EXT_OIDC_REDIRECT_URI;
   const extOidcBaseUrl = (process.env.EXT_OIDC_BASE_URL || 'https://cuenta.digital.gob.do').replace(/\/$/, '');
 
-  if (!clientId || !clientSecret) {
+  if (!clientId || !clientSecret || !redirectUri) {
     res.status(500).json({ error: 'External OIDC client credentials not configured on server' });
     return;
   }
 
-  if (!code || !redirect_uri) {
-    res.status(400).json({ error: 'code and redirect_uri are required' });
+  if (!code) {
+    res.status(400).json({ error: 'code is required' });
     return;
   }
 
@@ -313,7 +348,7 @@ app.post('/auth/ext-token', express.urlencoded({ extended: false }), express.jso
       body: new URLSearchParams({
         grant_type: 'authorization_code',
         code,
-        redirect_uri,
+        redirect_uri: redirectUri,
         client_id: clientId,
         client_secret: clientSecret,
       }),

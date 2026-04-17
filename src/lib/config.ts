@@ -4,8 +4,6 @@ export interface AppConfig {
   VITE_OAUTH2_REDIRECT_URI: string;
   VITE_ORY_HYDRA_PUBLIC: string;
   VITE_ORY_KRATOS_PUBLIC: string;
-  VITE_EXT_OIDC_CLIENT_ID: string;
-  VITE_EXT_OIDC_REDIRECT_URI: string;
   VITE_ISSUER_DID: string;
   VITE_SCHEMA_ID: string;
   VITE_SCHEMA_VERSION: string;

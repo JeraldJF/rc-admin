@@ -28,24 +28,12 @@ export default function Callback() {
 
       // ---- External OIDC flow (state starts with "ext_") ----
       if (state?.startsWith('ext_')) {
-        const savedExtState = sessionStorage.getItem('external_oidc_state');
-        if (state !== savedExtState) {
-          setError('Invalid state parameter - possible CSRF attack');
-          return;
-        }
-
         try {
-          sessionStorage.removeItem('external_oidc_state');
-
-          // Server exchanges the code, calls ext userinfo, and returns merged claims.
-          // The ext access_token never leaves the server.
+          // Server verifies state against the session it stored in /auth/ext-redirect.
           const tokenResponse = await fetch('/auth/ext-token', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({
-              code,
-              redirect_uri: getConfig().VITE_EXT_OIDC_REDIRECT_URI || 'http://localhost:3000/callback',
-            }),
+            body: new URLSearchParams({ code, state }),
             credentials: 'include',
           });
 
