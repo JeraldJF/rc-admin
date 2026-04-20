@@ -4,7 +4,6 @@ import { rewriteHydraRedirect } from '@/lib/oauth2';
 import { useSearchParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { lookupEmployeeRole } from '@/lib/roleService';
 
 // Login flow:
 //   1. Hydra sends login_challenge → check for existing Kratos session
@@ -25,11 +24,10 @@ const Login = () => {
   const acceptHydraChallenge = async (challenge: string, subjectId: string, traits: any) => {
     const userEmail = traits?.email || subjectId;
 
-    // Look up the real role from the registry API
-    const { role: userRole, osid } = await lookupEmployeeRole(userEmail);
-    if (osid) {
-      sessionStorage.setItem('employeeOsid', osid);
-    }
+    // The real role is determined in Callback.tsx after the full Hydra flow
+    // via GET /auth/role (server-side Registry lookup). Use 'employee' as a
+    // placeholder here — the consent screen doesn't route based on this value.
+    const userRole = 'employee';
 
     const res = await fetch('/auth/hydra-accept-login', {
       method: 'POST',

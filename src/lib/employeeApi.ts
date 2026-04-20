@@ -90,6 +90,25 @@ export const searchEmployeeByEmail = async (email: string) => {
     return await performSearch({ "email": { eq: email } });
 };
 
+// Search Employee by osOwner field (employees have osOwner set to their email)
+export const searchEmployeeByOsOwner = async (email: string) => {
+    const response = await fetch(`${getBaseUrl()}/registry/api/v1/Employee/search`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({ filters: { "osOwner": { eq: email } } }),
+    });
+
+    if (!response.ok) {
+        if (response.status === 401) handleUnauthorized();
+        throw new Error(`Search by osOwner failed: ${response.status}`);
+    }
+    return await response.json();
+};
+
 // Get Employee by ID
 export const getEmployeeById = async (osid: string) => {
     const response = await fetch(`${getBaseUrl()}/registry/api/v1/Employee/${osid}`, {

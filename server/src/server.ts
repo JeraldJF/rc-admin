@@ -97,7 +97,16 @@ app.get('/auth/ext-redirect', (req: Request, res: Response) => {
   authUrl.searchParams.set('scope', 'openid offline_access email profile');
   authUrl.searchParams.set('state', state);
 
-  res.redirect(authUrl.toString());
+  // Explicitly save the session before redirecting — with an async store (PG),
+  // the redirect can fire before the write completes, losing extOidcState.
+  req.session.save((err) => {
+    if (err) {
+      console.error('[/auth/ext-redirect] session save failed:', err);
+      res.status(500).json({ error: 'Session save failed' });
+      return;
+    }
+    res.redirect(authUrl.toString());
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -535,6 +544,94 @@ app.post('/auth/hydra-accept-logout', express.json(), async (req: Request, res: 
 // ---------------------------------------------------------------------------
 // Session management endpoints
 // ---------------------------------------------------------------------------
+
+// GET /auth/role
+// Looks up the logged-in user's role and osid from the Registry, server-side.
+// Uses the user's own Hydra token (already in session) — admin tokens return all
+// records; employee tokens return only their own via ABAC. Returns { role, osid }.
+app.get('/auth/role', async (req: Request, res: Response) => {
+  if (!req.session.accessToken) {
+    res.status(401).json({ error: 'Not authenticated' });
+    return;
+  }
+
+  const email = req.session.userEmail;
+  if (!email) {
+    res.status(400).json({ error: 'No email in session' });
+    return;
+  }
+
+  const registryBase = (process.env.API_BASE_URL || 'http://localhost:8081').replace(/\/$/, '');
+  const token = req.session.accessToken;
+
+  const searchRegistry = async (filters: object): Promise<any | null> => {
+    try {
+      const r = await fetch(`${registryBase}/api/v1/Employee/search`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'x-authenticated-user-token': token,
+        },
+        body: JSON.stringify({ filters }),
+      });
+      if (!r.ok) return null;
+      return r.json();
+    } catch {
+      return null;
+    }
+  };
+
+  // Unwrap { Employee: {...} } wrappers and skip sub-records (contactDetails, etc.)
+  // that the Registry sometimes returns mixed in with real Employee entities.
+  const findByEmail = (data: any, target: string): any | null => {
+    const lc = target.toLowerCase();
+    const records: any[] = Array.isArray(data) ? data
+      : Array.isArray(data?.Employee) ? data.Employee
+      : Array.isArray(data?.data) ? data.data
+      : [];
+
+    for (const raw of records) {
+      const emp = raw?.Employee || raw;
+      if (!emp.systemDetails) continue; // skip sub-records
+      const empEmail = (emp.contactDetails?.email || emp.email || '').toLowerCase();
+      if (empEmail && empEmail === lc) return emp;
+    }
+    return null;
+  };
+
+  try {
+    // Attempt 1 — dot-notation filter (targeted, one record when supported)
+    const data1 = await searchRegistry({ 'contactDetails.email': { eq: email } });
+    let emp = data1 ? findByEmail(data1, email) : null;
+
+    // Attempt 2 — no filter + client-side match
+    // Admin token → all records returned; employee token → only their own (ABAC)
+    if (!emp) {
+      const data2 = await searchRegistry({});
+      emp = data2 ? findByEmail(data2, email) : null;
+    }
+
+    // Attempt 3 — osOwner filter (employees have osOwner = their email)
+    if (!emp) {
+      const data3 = await searchRegistry({ osOwner: { eq: email } });
+      emp = data3 ? findByEmail(data3, email) : null;
+    }
+
+    if (emp) {
+      const role = (emp.systemDetails?.role || 'employee').toLowerCase();
+      const osid: string | null = emp.osid || emp.id || null;
+      console.log(`[/auth/role] ${email} → role=${role} osid=${osid}`);
+      res.json({ role, osid });
+    } else {
+      console.log(`[/auth/role] no record found for ${email}, defaulting to employee`);
+      res.json({ role: 'employee', osid: null });
+    }
+  } catch (err) {
+    console.error('[/auth/role] lookup failed:', err);
+    res.status(502).json({ error: 'Registry lookup failed' });
+  }
+});
 
 // GET /auth/me — returns current session identity without exposing tokens
 app.get('/auth/me', (req: Request, res: Response) => {
