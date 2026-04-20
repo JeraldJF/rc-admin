@@ -12,7 +12,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { addEmployee } from "@/lib/employeeApi";
+import { addEmployee, issueEmployeeCertificate } from "@/lib/employeeApi";
 
 const FormField = ({ children }: { children: React.ReactNode }) => (
   <div className="space-y-2.5">{children}</div>
@@ -23,6 +23,7 @@ const AddEntity = () => {
   const { toast } = useToast();
   const { t } = useLanguage();
   const [isSaving, setIsSaving] = useState(false);
+  const [savingStep, setSavingStep] = useState<"saving" | "issuing" | null>(null);
 
   const [formData, setFormData] = useState({
     gender: "Male",
@@ -63,9 +64,10 @@ const AddEntity = () => {
 
     if (validateForm()) {
       setIsSaving(true);
+      setSavingStep("saving");
       try {
         // Add Employee (flat schema)
-        await addEmployee({
+        const result = await addEmployee({
           fullName: formData.fullName,
           email: formData.email || `${formData.personalIdentification || Date.now()}@rc.local`,
           ...(formData.personalIdentification && { personalIdentification: formData.personalIdentification }),
@@ -79,9 +81,26 @@ const AddEntity = () => {
           ...(formData.salary && { salary: formData.salary }),
         });
 
+        // Extract osid from the registry response
+        const osid =
+          result?.result?.Employee?.osid ||
+          result?.Employee?.osid ||
+          result?.osid;
+
+        if (osid) {
+          setSavingStep("issuing");
+          try {
+            await issueEmployeeCertificate(osid);
+          } catch (certError) {
+            // Certificate issuance failed — employee record was still created.
+            // Log but don't block navigation; admin can retry from the registry.
+            console.warn("Auto-certificate issuance failed:", certError);
+          }
+        }
+
         toast({
           title: "✅ Employee Added",
-          description: "New employee record created successfully.",
+          description: "Employee record created and certificate issued.",
           variant: "success",
         });
         navigate("/registry");
@@ -93,6 +112,7 @@ const AddEntity = () => {
         });
       } finally {
         setIsSaving(false);
+        setSavingStep(null);
       }
     }
   };
@@ -314,10 +334,15 @@ const AddEntity = () => {
               {t("btn.cancel")}
             </Button>
             <Button type="submit" disabled={isSaving} className="rounded-lg px-10 h-12 bg-primary hover:bg-primary/90 gap-2 font-semibold shadow-lg hover:shadow-xl transition-all">
-              {isSaving ? (
+              {savingStep === "saving" ? (
                 <>
                   <Loader2 className="h-5 w-5 animate-spin" />
-                  {t("action.saving")}
+                  Saving...
+                </>
+              ) : savingStep === "issuing" ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  Issuing certificate...
                 </>
               ) : (
                 <>
