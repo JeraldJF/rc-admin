@@ -157,7 +157,7 @@ const Registry = () => {
     setIsLoading(true);
     try {
       const response = await searchAllEmployees();
-
+    
       // Handle the various ways Sunbird RC can return data
       // Based on provided JSON: { "totalCount": 7, "data": [...] }
       let employeesArray = [];
@@ -177,33 +177,62 @@ const Registry = () => {
       }
 
       // Transform API response to EntityData format
-      // Prioritize flat schema (direct fields) over nested schema (identityDetails/contactDetails)
-      const employeeData: EntityData[] = employeesArray.map((employee: any) => {
-        // Flat schema fields (prioritized)
-        const flatName = employee.fullName
-          || (employee.firstName && employee.lastName
-            ? `${employee.firstName} ${employee.lastName}`.trim()
-            : employee.name);
-        const flatEmail = employee.email;
-        const flatMobile = employee.phoneNumber || employee.mobile;
-        const flatEmpNum = employee.employeeNumber || employee.personalIdentification;
+      // Sunbird RC returns BOTH the actual employee record AND a wrapper record with nested Employee object
+      // We need to deduplicate by the actual employee osid
+      const seenOsids = new Set<string>();
+      
+      const employeeData: EntityData[] = employeesArray
+        .filter((employee: any) => {
+          // Extract the actual employee data (handle both flat and nested structures)
+          const actualEmployee = employee.Employee || employee;
+          const actualOsid = actualEmployee.osid || actualEmployee.id;
+          
+          // Skip records without osid or id
+          if (!actualOsid) return false;
+          
+          // Skip duplicate osids (Sunbird RC returns both wrapper and actual records)
+          if (seenOsids.has(actualOsid)) return false;
+          seenOsids.add(actualOsid);
+          
+          // Skip records that are just empty objects or have no meaningful data
+          const flatName = actualEmployee.fullName || actualEmployee.firstName || actualEmployee.lastName || actualEmployee.name;
+          const flatEmail = actualEmployee.email;
+          const nestedName = actualEmployee.identityDetails?.fullName;
+          const nestedEmail = actualEmployee.contactDetails?.email;
+          
+          // Must have either a name or email to be considered a valid employee record
+          return !!(flatName || nestedName || flatEmail || nestedEmail);
+        })
+        .map((employee: any) => {
+          // Extract the actual employee data (prioritize nested Employee object if it exists)
+          const actualEmployee = employee.Employee || employee;
+          
+          // Flat schema fields (prioritized)
+          const flatName = actualEmployee.fullName
+            || (actualEmployee.firstName && actualEmployee.lastName
+              ? `${actualEmployee.firstName} ${actualEmployee.lastName}`.trim()
+              : actualEmployee.name);
+          const flatEmail = actualEmployee.email;
+          const flatMobile = actualEmployee.phoneNumber || actualEmployee.mobile;
+          const flatEmpNum = actualEmployee.employeeNumber || actualEmployee.personalIdentification;
 
-        // Nested schema fields (fallback)
-        const nestedName = employee.identityDetails?.fullName;
-        const nestedEmail = employee.contactDetails?.email;
-        const nestedMobile = employee.contactDetails?.mobile;
-        const nestedEmpNum = employee.identityDetails?.employeeNumber || employee.identityDetails?.personalIdentification;
+          // Nested schema fields (fallback)
+          const nestedName = actualEmployee.identityDetails?.fullName;
+          const nestedEmail = actualEmployee.contactDetails?.email;
+          const nestedMobile = actualEmployee.contactDetails?.mobile;
+          const nestedEmpNum = actualEmployee.identityDetails?.employeeNumber || actualEmployee.identityDetails?.personalIdentification;
 
-        return {
-          id: employee.osid || employee.id,
-          name: flatName || nestedName || 'N/A',
-          email: flatEmail || nestedEmail || 'N/A',
-          instituteName: (flatEmpNum || nestedEmpNum) ? `ID: ${flatEmpNum || nestedEmpNum}` : employee.instituteName || 'N/A',
-          mobile: flatMobile || nestedMobile,
-          created: employee.osCreatedAt || employee.createdAt || employee.osCreatedAt || '2024-01-01T00:00:00Z',
-          updated: employee.osUpdatedAt || employee.updatedAt || employee.osUpdatedAt || '2024-01-01T00:00:00Z',
-        };
-      });
+          return {
+            id: actualEmployee.osid || actualEmployee.id,
+            name: flatName || nestedName || 'N/A',
+            email: flatEmail || nestedEmail || 'N/A',
+            instituteName: (flatEmpNum || nestedEmpNum) ? `ID: ${flatEmpNum || nestedEmpNum}` : actualEmployee.instituteName || 'N/A',
+            mobile: flatMobile || nestedMobile,
+            created: actualEmployee.osCreatedAt || actualEmployee.createdAt || actualEmployee.osCreatedAt || '2024-01-01T00:00:00Z',
+            updated: actualEmployee.osUpdatedAt || actualEmployee.updatedAt || actualEmployee.osUpdatedAt || '2024-01-01T00:00:00Z',
+          };
+        });
+    
 
       setEntities(employeeData);
 
