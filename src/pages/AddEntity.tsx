@@ -134,7 +134,7 @@ const AddEntity = () => {
                   <h3 className="text-sm font-bold text-foreground uppercase tracking-wide">Personal Details</h3>
                 </div>
 
-                <div className="grid grid-cols-1 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <FormField>
                     <Label htmlFor="fullName" className="text-sm font-semibold text-foreground">
                       Full Name <span className="text-destructive">*</span>
@@ -157,6 +157,22 @@ const AddEntity = () => {
                     )}
                   </FormField>
 
+                  <FormField>
+                    <Label htmlFor="email" className="text-sm font-semibold text-foreground">
+                      Email
+                    </Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      className="rounded-lg h-12 text-base border-border/60 focus:border-primary"
+                      placeholder="employee@example.com"
+                    />
+                  </FormField>
+                </div>
+
+                <div className="grid grid-cols-1 gap-6">
                   <FormField>
                     <Label className="text-sm font-semibold text-foreground">
                       Admission Date <span className="text-destructive">*</span>

@@ -136,13 +136,18 @@ export const inviteEmployee = async (employeeData: {
     mobile?: string;
     role?: 'admin' | 'employee';
 }): Promise<{ isDuplicate?: boolean; result?: any }> => {
+    // Wrap the flat data in Employee object as per the API format
+    const payload = {
+        Employee: employeeData
+    };
+
     const response = await fetch(`${getBaseUrl()}/registry/api/v1/Employee/invite`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
             "Accept": "application/json",
         },
-        body: JSON.stringify(employeeData),
+        body: JSON.stringify(payload),
     });
 
     const data = await response.json();
@@ -158,7 +163,7 @@ export const inviteEmployee = async (employeeData: {
     return { result: data };
 };
 
-// Add Employee (Admin)
+// Add Employee (Admin) - using flat schema format
 export const addEmployee = async (employeeData: {
     fullName: string;
     email: string;
@@ -174,6 +179,11 @@ export const addEmployee = async (employeeData: {
     statusName?: string;
     salary?: string;
 }) => {
+    // Wrap the flat data in Employee object as per the API format
+    const payload = {
+        Employee: employeeData
+    };
+
     const response = await fetch(`${getBaseUrl()}/registry/api/v1/Employee`, {
         method: "POST",
         headers: {
@@ -181,7 +191,7 @@ export const addEmployee = async (employeeData: {
             "Accept": "application/json",
         },
         credentials: "include",
-        body: JSON.stringify(employeeData),
+        body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
@@ -337,7 +347,7 @@ export const downloadEmployeeCertificate = async (osid: string): Promise<Blob> =
     return await pdfRes.blob();
 };
 
-// Update Employee (Admin)
+// Update Employee (Admin) - using flat schema format
 export const updateEmployee = async (employeeId: string, employeeData: Partial<{
     fullName?: string;
     email?: string;
@@ -353,6 +363,11 @@ export const updateEmployee = async (employeeId: string, employeeData: Partial<{
     statusName?: string;
     salary?: string;
 }>) => {
+    // Wrap the flat data in Employee object as per the API format
+    const payload = {
+        Employee: employeeData
+    };
+
     const response = await fetch(`${getBaseUrl()}/registry/api/v1/Employee/${employeeId}`, {
         method: "PUT",
         headers: {
@@ -360,7 +375,7 @@ export const updateEmployee = async (employeeId: string, employeeData: Partial<{
             "Accept": "application/json",
         },
         credentials: "include",
-        body: JSON.stringify(employeeData),
+        body: JSON.stringify(payload),
     });
 
     if (!response.ok) {

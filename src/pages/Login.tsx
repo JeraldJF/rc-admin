@@ -21,13 +21,22 @@ const Login = () => {
   const [checking, setChecking] = useState(true);
   const [status, setStatus] = useState("Connecting...");
 
+  const fetchUserRole = async () => {
+    const roleRes = await fetch('/auth/role');
+    if (!roleRes.ok) {
+      throw new Error('Failed to determine user role: ' + await roleRes.text());
+    }
+    const roleData = await roleRes.json();
+    const userRole = roleData?.role;
+    if (typeof userRole !== 'string' || !userRole.trim()) {
+      throw new Error('Failed to determine user role: invalid role response');
+    }
+    return userRole;
+  };
+
   const acceptHydraChallenge = async (challenge: string, subjectId: string, traits: any) => {
     const userEmail = traits?.email || subjectId;
-
-    // The real role is determined in Callback.tsx after the full Hydra flow
-    // via GET /auth/role (server-side Registry lookup). Use 'employee' as a
-    // placeholder here — the consent screen doesn't route based on this value.
-    const userRole = 'employee';
+    const userRole = await fetchUserRole();
 
     const res = await fetch('/auth/hydra-accept-login', {
       method: 'POST',
