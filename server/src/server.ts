@@ -27,6 +27,10 @@ declare module 'express-session' {
 const app = express();
 const PORT = process.env.PORT || 8080;
 
+// Trust the first proxy (Nginx). This lets req.secure reflect X-Forwarded-Proto
+// so the session cookie's Secure flag is set only when the client is truly on HTTPS.
+app.set('trust proxy', 1);
+
 // Body parsers are intentionally NOT registered globally — applying them to
 // proxied routes consumes the request stream, so Hydra/Kratos/etc. receive an
 // empty body. They are applied inline only on the routes that actually need them.
@@ -49,7 +53,11 @@ app.use(session({
   saveUninitialized: false,
   cookie: {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    // 'auto' defers to req.secure which respects X-Forwarded-Proto from Nginx.
+    // This means the Secure flag is NOT set when Nginx proxies over plain HTTP
+    // (local dev / HTTP-only proxy), preventing the browser from silently dropping
+    // the session cookie and causing "Invalid state parameter" CSRF errors.
+    secure: 'auto',
     sameSite: 'lax',
     maxAge: 24 * 60 * 60 * 1000,
   },
@@ -564,7 +572,10 @@ app.get('/auth/role', async (req: Request, res: Response) => {
   const registryBase = (process.env.API_BASE_URL || 'http://localhost:8081').replace(/\/$/, '');
   const token = req.session.accessToken;
 
-  const searchRegistry = async (filters: object): Promise<any | null> => {
+  const searchRegistry = async (
+    filters: object,
+    paging?: { limit: number; offset: number }
+  ): Promise<any | null> => {
     try {
       const r = await fetch(`${registryBase}/api/v1/Employee/search`, {
         method: 'POST',
@@ -573,7 +584,10 @@ app.get('/auth/role', async (req: Request, res: Response) => {
           'Authorization': `Bearer ${token}`,
           'x-authenticated-user-token': token,
         },
-        body: JSON.stringify({ filters }),
+        body: JSON.stringify({
+          filters,
+          ...(paging ? { limit: paging.limit, offset: paging.offset } : {}),
+        }),
       });
       if (!r.ok) return null;
       return r.json();
@@ -584,51 +598,63 @@ app.get('/auth/role', async (req: Request, res: Response) => {
 
   // Unwrap { Employee: {...} } wrappers and skip sub-records (contactDetails, etc.)
   // that the Registry sometimes returns mixed in with real Employee entities.
-  const findByEmail = (data: any, target: string): any | null => {
-    const lc = target.toLowerCase();
-    const records: any[] = Array.isArray(data) ? data
+  const getEmployeeRecords = (data: any): any[] =>
+    Array.isArray(data) ? data
       : Array.isArray(data?.Employee) ? data.Employee
       : Array.isArray(data?.data) ? data.data
       : [];
 
+  const findByEmail = (data: any, target: string): any | null => {
+    const lc = target.toLowerCase();
+    const records = getEmployeeRecords(data);
+
     for (const raw of records) {
       const emp = raw?.Employee || raw;
-      if (!emp.systemDetails) continue; // skip sub-records
-      const empEmail = (emp.contactDetails?.email || emp.email || '').toLowerCase();
+      // Skip sub-records - they don't have osid/id
+      if (!emp.osid && !emp.id) continue;
+      // Prioritize flat schema email over nested
+      const empEmail = (emp.email || emp.contactDetails?.email || '').toLowerCase();
       if (empEmail && empEmail === lc) return emp;
     }
     return null;
   };
 
   try {
-    // Attempt 1 — dot-notation filter (targeted, one record when supported)
-    const data1 = await searchRegistry({ 'contactDetails.email': { eq: email } });
+    // Attempt 1 — flat email filter (prioritized for flat schema)
+    const data1 = await searchRegistry({ 'email': { eq: email } });
     let emp = data1 ? findByEmail(data1, email) : null;
 
-    // Attempt 2 — no filter + client-side match
-    // Admin token → all records returned; employee token → only their own (ABAC)
+    // Attempt 2 — osOwner filter (employees have osOwner = their email)
     if (!emp) {
-      const data2 = await searchRegistry({});
+      const data2 = await searchRegistry({ osOwner: { eq: email } });
       emp = data2 ? findByEmail(data2, email) : null;
     }
 
-    // Attempt 3 — osOwner filter (employees have osOwner = their email)
+    // Attempt 3 — paged unfiltered fallback + client-side match
+    // Admin token may see many records, so cap each request and page until found.
     if (!emp) {
-      const data3 = await searchRegistry({ osOwner: { eq: email } });
-      emp = data3 ? findByEmail(data3, email) : null;
+      const pageSize = 100;
+      let offset = 0;
+      while (!emp) {
+        const data3 = await searchRegistry({}, { limit: pageSize, offset });
+        if (!data3) break;
+        emp = findByEmail(data3, email);
+        if (emp) break;
+        const records = getEmployeeRecords(data3);
+        if (records.length < pageSize) break;
+        offset += pageSize;
+      }
     }
 
     if (emp) {
-      const role = (emp.systemDetails?.role || 'employee').toLowerCase();
+      // Prioritize flat schema role over nested
+      const role = (emp.role || emp.systemDetails?.role || 'employee').toLowerCase();
       const osid: string | null = emp.osid || emp.id || null;
-      console.log(`[/auth/role] ${email} → role=${role} osid=${osid}`);
       res.json({ role, osid });
     } else {
-      console.log(`[/auth/role] no record found for ${email}, defaulting to employee`);
       res.json({ role: 'employee', osid: null });
     }
   } catch (err) {
-    console.error('[/auth/role] lookup failed:', err);
     res.status(502).json({ error: 'Registry lookup failed' });
   }
 });

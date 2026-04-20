@@ -130,7 +130,7 @@ const Registry = () => {
       setCertifiedOsids(prev => new Set(prev).add(osid));
       toast({
         title: "Certificate issued",
-        description: `Certificate issued for ${selectedEntity.fullName || selectedEntity.identityDetails?.fullName || "employee"}.`,
+        description: `Certificate issued for ${selectedEntity.fullName || "employee"}.`,
         variant: "success",
       });
     } catch (error) {
@@ -177,29 +177,29 @@ const Registry = () => {
       }
 
       // Transform API response to EntityData format
-      // Handle both schemas: nested (identityDetails/contactDetails) and flat (firstName/email)
+      // Prioritize flat schema (direct fields) over nested schema (identityDetails/contactDetails)
       const employeeData: EntityData[] = employeesArray.map((employee: any) => {
-        // Nested schema fields
-        const nestedName = employee.identityDetails?.fullName;
-        const nestedEmail = employee.contactDetails?.email;
-        const nestedMobile = employee.contactDetails?.mobile;
-        const nestedEmpNum = employee.identityDetails?.employeeNumber;
-
-        // Flat schema fields
+        // Flat schema fields (prioritized)
         const flatName = employee.fullName
           || (employee.firstName && employee.lastName
             ? `${employee.firstName} ${employee.lastName}`.trim()
             : employee.name);
         const flatEmail = employee.email;
         const flatMobile = employee.phoneNumber || employee.mobile;
-        const flatEmpNum = employee.employeeNumber;
+        const flatEmpNum = employee.employeeNumber || employee.personalIdentification;
+
+        // Nested schema fields (fallback)
+        const nestedName = employee.identityDetails?.fullName;
+        const nestedEmail = employee.contactDetails?.email;
+        const nestedMobile = employee.contactDetails?.mobile;
+        const nestedEmpNum = employee.identityDetails?.employeeNumber || employee.identityDetails?.personalIdentification;
 
         return {
           id: employee.osid || employee.id,
-          name: nestedName || flatName || 'N/A',
-          email: nestedEmail || flatEmail || 'N/A',
-          instituteName: (nestedEmpNum || flatEmpNum) ? `Emp #${nestedEmpNum || flatEmpNum}` : employee.instituteName || 'N/A',
-          mobile: nestedMobile || flatMobile,
+          name: flatName || nestedName || 'N/A',
+          email: flatEmail || nestedEmail || 'N/A',
+          instituteName: (flatEmpNum || nestedEmpNum) ? `ID: ${flatEmpNum || nestedEmpNum}` : employee.instituteName || 'N/A',
+          mobile: flatMobile || nestedMobile,
           created: employee.osCreatedAt || employee.createdAt || employee.osCreatedAt || '2024-01-01T00:00:00Z',
           updated: employee.osUpdatedAt || employee.updatedAt || employee.osUpdatedAt || '2024-01-01T00:00:00Z',
         };
@@ -555,8 +555,8 @@ const Registry = () => {
 
               {/* Employee name */}
               <div className="bg-muted/40 p-4 rounded-lg border border-border">
-                <h3 className="font-bold text-lg mb-1">{selectedEntity.fullName || selectedEntity.identityDetails?.fullName || selectedEntity.name || "N/A"}</h3>
-                <p className="text-sm text-muted-foreground">{selectedEntity.email || selectedEntity.contactDetails?.email || "N/A"}</p>
+                <h3 className="font-bold text-lg mb-1">{selectedEntity.fullName || selectedEntity.name || "N/A"}</h3>
+                <p className="text-sm text-muted-foreground">{selectedEntity.email || "N/A"}</p>
               </div>
 
               {/* Certificate status / issuance */}
