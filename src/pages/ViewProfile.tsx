@@ -307,10 +307,15 @@ const ViewProfile = () => {
                       </div>
                       <div className="flex flex-wrap items-center justify-end gap-3">
                         {certChecking ? (
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground px-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="gap-2 rounded-xl h-11 px-5"
+                            disabled
+                          >
                             <Loader2 className="h-4 w-4 animate-spin" />
-                            Checking status...
-                          </div>
+                            Loading certificate...
+                          </Button>
                         ) : certIssued ? (
                           <>
                             <Badge variant="outline" className="gap-2 border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-emerald-700">
@@ -338,10 +343,25 @@ const ViewProfile = () => {
                             </Button>
                           </>
                         ) : (
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground border border-border rounded-xl px-4 h-11 bg-muted/30">
-                            <AlertCircle className="h-4 w-4 text-amber-500" />
-                            Certificate not yet verified
-                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="gap-2 rounded-xl h-11 px-5"
+                            onClick={handleDownloadEmployeeCertificate}
+                            disabled={downloadingId !== null}
+                          >
+                            {downloadingId ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Downloading...
+                              </>
+                            ) : (
+                              <>
+                                <Download className="h-4 w-4" />
+                                Download certificate
+                              </>
+                            )}
+                          </Button>
                         )}
                       </div>
                     </div>

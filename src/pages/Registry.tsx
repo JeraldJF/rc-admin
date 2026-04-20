@@ -4,7 +4,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, SearchX, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Database, ShieldCheck, CheckCircle2 } from "lucide-react";
+import { Plus, Search, SearchX, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Database } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Pagination,
@@ -27,15 +27,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { searchAllEmployees, getEmployeeById, issueEmployeeCertificate, checkCertificateIssued } from "@/lib/employeeApi";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import { Label } from "@/components/ui/label";
+import { searchAllEmployees } from "@/lib/employeeApi";
 
 type SortOrder = "asc" | "desc" | null;
 type SortField = "created" | "updated" | null;
@@ -67,83 +59,6 @@ const Registry = () => {
   const [sortField, setSortField] = useState<SortField>("created");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const recordsPerPage = 10;
-
-  // View Sheet State
-  const [isViewOpen, setIsViewOpen] = useState(false);
-  const [selectedEntity, setSelectedEntity] = useState<any>(null);
-  const [viewLoading, setViewLoading] = useState(false);
-
-  // Certificate State
-  const [certIssued, setCertIssued] = useState(false);
-  const [certChecking, setCertChecking] = useState(false);
-  const [issuingCert, setIssuingCert] = useState(false);
-  // Tracks which employee osids have a certificate issued (populated on load + after issuance)
-  const [certifiedOsids, setCertifiedOsids] = useState<Set<string>>(new Set());
-
-  const handleView = async (entity: EntityData) => {
-    setIsViewOpen(true);
-    setViewLoading(true);
-    // Pre-populate from already-known state
-    const alreadyKnown = certifiedOsids.has(entity.id);
-    setCertIssued(alreadyKnown);
-    setCertChecking(!alreadyKnown);
-    try {
-      let details;
-
-      // Fetch employee details
-      details = await getEmployeeById(entity.id);
-
-      let cleanDetails = details;
-      if (details.Employee) cleanDetails = details.Employee;
-      else if (details.result?.Employee) cleanDetails = details.result.Employee;
-
-      setSelectedEntity(cleanDetails);
-
-      // Check certificate status for employees (admin view only)
-      if (userRole === "admin" && !alreadyKnown) {
-        const { issued } = await checkCertificateIssued(entity.id);
-        setCertIssued(issued);
-        if (issued) {
-          setCertifiedOsids(prev => new Set(prev).add(entity.id));
-        }
-        setCertChecking(false);
-      }
-    } catch (error) {
-      console.error("Error fetching details:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load details",
-        variant: "destructive"
-      });
-    } finally {
-      setViewLoading(false);
-    }
-  };
-
-  const handleIssueCertificate = async () => {
-    if (!selectedEntity) return;
-    const osid = selectedEntity.osid;
-    setIssuingCert(true);
-    try {
-      await issueEmployeeCertificate(osid);
-      setCertIssued(true);
-      setCertifiedOsids(prev => new Set(prev).add(osid));
-      toast({
-        title: "Certificate issued",
-        description: `Certificate issued for ${selectedEntity.fullName || "employee"}.`,
-        variant: "success",
-      });
-    } catch (error) {
-      toast({
-        title: "Failed to issue certificate",
-        description: error instanceof Error ? error.message : "Could not issue certificate",
-        variant: "destructive",
-      });
-    } finally {
-      setIssuingCert(false);
-    }
-  };
-
 
   useEffect(() => {
     const role = sessionStorage.getItem("userRole") || "admin";
@@ -235,13 +150,6 @@ const Registry = () => {
     
 
       setEntities(employeeData);
-
-      // Background: check certificate status for all employees
-      for (const emp of employeeData) {
-        checkCertificateIssued(emp.id).then(({ issued }) => {
-          if (issued) setCertifiedOsids(prev => new Set(prev).add(emp.id));
-        }).catch(() => {});
-      }
     } catch (error) {
       toast({
         title: t("toast.failed_load_employees") || "Failed to load employees",
@@ -410,7 +318,6 @@ const Registry = () => {
                       {getSortIcon("updated")}
                     </button>
                   </TableHead>
-                  <TableHead className="uppercase text-[11px] tracking-wider font-semibold text-muted-foreground">{t("table.actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -470,29 +377,6 @@ const Registry = () => {
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
-                    </TableCell>
-                    <TableCell>
-                      {certifiedOsids.has(entity.id) ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleView(entity)}
-                          className="gap-2 border-green-500 text-green-600 hover:bg-green-50"
-                        >
-                          <CheckCircle2 className="h-4 w-4" />
-                          Verified
-                        </Button>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleView(entity)}
-                          className="gap-2"
-                        >
-                          <ShieldCheck className="h-4 w-4" />
-                          Verify Certificate
-                        </Button>
-                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -570,59 +454,6 @@ const Registry = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <Sheet open={isViewOpen} onOpenChange={setIsViewOpen}>
-        <SheetContent className="overflow-y-auto sm:max-w-md w-full">
-          <SheetHeader>
-            <SheetTitle>Verify Certificate</SheetTitle>
-            <SheetDescription>Issue a verified credential for this employee</SheetDescription>
-          </SheetHeader>
-
-          {viewLoading ? (
-            <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>
-          ) : selectedEntity ? (
-            <div className="mt-6 space-y-6">
-
-              {/* Employee name */}
-              <div className="bg-muted/40 p-4 rounded-lg border border-border">
-                <h3 className="font-bold text-lg mb-1">{selectedEntity.fullName || selectedEntity.name || "N/A"}</h3>
-                <p className="text-sm text-muted-foreground">{selectedEntity.email || "N/A"}</p>
-              </div>
-
-              {/* Certificate status / issuance */}
-              <div className="space-y-3">
-                <Label className="text-xs text-muted-foreground uppercase tracking-wide">Certificate Status</Label>
-                {certChecking ? (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Checking...
-                  </div>
-                ) : certIssued ? (
-                  <div className="flex items-center gap-2 text-green-600 font-semibold">
-                    <CheckCircle2 className="h-5 w-5" />
-                    Certificate already issued
-                  </div>
-                ) : (
-                  <Button
-                    className="gap-2 w-full"
-                    onClick={handleIssueCertificate}
-                    disabled={issuingCert}
-                  >
-                    {issuingCert ? (
-                      <><Loader2 className="h-4 w-4 animate-spin" />Issuing...</>
-                    ) : (
-                      <><ShieldCheck className="h-4 w-4" />Verify &amp; Issue Certificate</>
-                    )}
-                  </Button>
-                )}
-              </div>
-
-            </div>
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">No details available</div>
-          )}
-        </SheetContent>
-      </Sheet>
-
     </DashboardLayout>
   );
 };
