@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { rewriteHydraRedirect } from '../lib/oauth2';
-import { lookupEmployeeRole } from '../lib/roleService';
 import { getConfig } from '../lib/config';
 
 export default function Callback() {
@@ -118,11 +117,12 @@ export default function Callback() {
         if (email) sessionStorage.setItem('userEmail', email);
         if (name) sessionStorage.setItem('userName', name);
 
-        // Look up role and osid from Registry API — the session is now set so the
-        // proxy will inject the auth token automatically.
-        console.log('[Callback] Looking up role for email:', email);
-        const { role: rcRole, osid: rcOsid } = await lookupEmployeeRole(email);
-        console.log('[Callback] Registry lookup result:', { rcRole, rcOsid });
+        // Look up role and osid from the server — it uses the session token directly
+        // and does the Registry search server-side (no raw employee data in the browser).
+        const roleRes = await fetch('/auth/role', { credentials: 'include' });
+        if (!roleRes.ok) throw new Error(`Role lookup failed: ${await roleRes.text()}`);
+        const { role: rcRole, osid: rcOsid } = await roleRes.json();
+        console.log('[Callback] Role lookup result:', { rcRole, rcOsid });
 
         if (rcOsid) sessionStorage.setItem('employeeOsid', rcOsid);
         const role = (rcRole || 'employee').toLowerCase();

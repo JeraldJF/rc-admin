@@ -13,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { searchAdminByEmail, getAdminById } from "@/lib/api";
-import { searchEmployeeByEmail, getEmployeeById, searchAllEmployees, updateEmployee, downloadEmployeeCertificate, checkCertificateIssued } from "@/lib/employeeApi";
+import { searchEmployeeByOsOwner, getEmployeeById, searchAllEmployees, updateEmployee, downloadEmployeeCertificate, checkCertificateIssued } from "@/lib/employeeApi";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
@@ -120,49 +120,55 @@ const ViewProfile = () => {
         }
       }
 
-      // Method 1: Search by specific email (admin token only)
-      if (!osid) {
-        try {
-          const searchResults = await searchEmployeeByEmail(email);
-          const employeesArray = Array.isArray(searchResults)
-            ? searchResults
-            : (searchResults.data || searchResults.Employee || searchResults.result?.Employee || []);
-
-          if (employeesArray && employeesArray.length > 0) {
-            employeeSummary = employeesArray[0];
-            osid = employeeSummary.osid || employeeSummary.id;
-          }
-        } catch (err) {
-          // Email search failed
+      // Helper: unwrap { Employee: {...} } wrapper and match by email.
+      // Requires systemDetails to be present — sub-records (contactDetails, etc.)
+      // returned by the Registry API don't have systemDetails and must be skipped.
+      const findByEmail = (records: any[], targetEmail: string): any | null => {
+        const target = targetEmail.toLowerCase();
+        for (const raw of records) {
+          const emp = raw?.Employee || raw;
+          if (!emp.systemDetails) continue; // skip sub-records
+          const empEmail = (emp.contactDetails?.email || emp.email || "").toLowerCase();
+          if (empEmail && empEmail === target) return emp;
         }
-      }
+        return null;
+      };
 
-      // Method 2: Fallback to Search All and match (if Method 1 failed)
+      const extractArray = (data: any): any[] => {
+        if (Array.isArray(data)) return data;
+        const inner = data?.data || data?.Employee || data?.result?.Employee || data?.content;
+        if (Array.isArray(inner)) return inner;
+        return [];
+      };
+
+      // Method 1: Search all records (no filter) and match client-side by email.
+      // Nested-field filters (e.g. contactDetails.email) cause the Registry to return
+      // child sub-records instead of the parent Employee entity, so we avoid them.
+      // With ABAC: admin tokens return all records; employee tokens return only their own.
       if (!osid) {
         try {
           const allEmployees = await searchAllEmployees();
-          let allArray = [];
-
-          if (Array.isArray(allEmployees)) {
-            allArray = allEmployees;
-          } else {
-            const listData = allEmployees.data || allEmployees.Employee || allEmployees.result || allEmployees.content;
-            if (Array.isArray(listData)) allArray = listData;
-            else if (listData?.content && Array.isArray(listData.content)) allArray = listData.content;
-          }
-
-          // Exact email match (empEmail must be non-empty to avoid false positives)
-          const found = allArray.find((emp: any) => {
-            const empEmail = (emp.email || emp.contactDetails?.email || "").toLowerCase();
-            return empEmail && empEmail === email.toLowerCase();
-          });
-
+          const found = findByEmail(extractArray(allEmployees), email);
           if (found) {
             employeeSummary = found;
             osid = found.osid || found.id;
           }
         } catch (err) {
-          console.error("❌ Fallback search failed:", err);
+          console.error("❌ Search failed:", err);
+        }
+      }
+
+      // Method 2: Search by osOwner as fallback (employees have osOwner = their email)
+      if (!osid) {
+        try {
+          const ownerResults = await searchEmployeeByOsOwner(email);
+          const found = findByEmail(extractArray(ownerResults), email);
+          if (found) {
+            employeeSummary = found;
+            osid = found.osid || found.id;
+          }
+        } catch (err) {
+          // osOwner search failed
         }
       }
 
@@ -392,48 +398,6 @@ const ViewProfile = () => {
                           <Badge variant="outline" className="mt-2 text-primary border-primary/20 bg-primary/5 px-3 py-1 text-sm font-bold uppercase tracking-widest leading-none">
                             {formData.positionName}
                           </Badge>
-                        )}
-                      </div>
-                      <div className="flex gap-3">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => setIsEditMode(true)}
-                          className="gap-2 rounded-xl h-11 px-5"
-                        >
-                          <Edit2 className="h-4 w-4" />
-                          Edit Profile
-                        </Button>
-                        {certChecking ? (
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground px-2">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            Checking status...
-                          </div>
-                        ) : certIssued ? (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={handleDownloadEmployeeCertificate}
-                            disabled={downloadingId !== null}
-                            className="gap-2 rounded-xl h-11 px-5"
-                          >
-                            {downloadingId ? (
-                              <>
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                Downloading...
-                              </>
-                            ) : (
-                              <>
-                                <Download className="h-4 w-4" />
-                                Download Certificate
-                              </>
-                            )}
-                          </Button>
-                        ) : (
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground border border-border rounded-xl px-4 h-11 bg-muted/30">
-                            <AlertCircle className="h-4 w-4 text-amber-500" />
-                            Certificate not yet verified — contact your administrator
-                          </div>
                         )}
                       </div>
                     </div>
