@@ -15,37 +15,21 @@ const handleUnauthorized = async () => {
 
 // Search all Employees (Admin)
 export const searchAllEmployees = async () => {
-    const performSearch = async (payload: any) => {
-        const response = await fetch(`${getBaseUrl()}/registry/api/v1/Employee/search`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Accept": "application/json",
-            },
-            credentials: "include",
-            body: JSON.stringify(payload),
-        });
+    const response = await fetch(`${getBaseUrl()}/registry/api/v1/Employee/search`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({ filters: {}, limit: 1000, offset: 0 }),
+    });
 
-        if (!response.ok) {
-            if (response.status === 401) handleUnauthorized();
-            throw new Error(`Search failed with status: ${response.status}`);
-        }
-        return await response.json();
-    };
-
-    try {
-        return await performSearch({ filters: {}, limit: 1000, offset: 0 });
-    } catch (error) {
-        try {
-            return await performSearch({ filters: {} });
-        } catch (e) {
-            try {
-                return await performSearch({ filters: { "role": { eq: "employee" } } });
-            } catch (e2) {
-                return await performSearch({ filters: { "osid": { neq: "null" } } });
-            }
-        }
+    if (!response.ok) {
+        if (response.status === 401) handleUnauthorized();
+        throw new Error(`Search failed with status: ${response.status}`);
     }
+    return await response.json();
 };
 
 // Search Employee by personal identification (cédula)
@@ -69,29 +53,6 @@ export const searchEmployeeByPersonalId = async (personalId: string) => {
 
 // Search Employee by email
 export const searchEmployeeByEmail = async (email: string) => {
-    const performSearch = async (filterObj: any) => {
-        const response = await fetch(`${getBaseUrl()}/registry/api/v1/Employee/search`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Accept": "application/json",
-            },
-            credentials: "include",
-            body: JSON.stringify({ filters: filterObj }),
-        });
-
-        if (!response.ok) {
-            if (response.status === 401) handleUnauthorized();
-            throw new Error(`Search failed with status: ${response.status}`);
-        }
-        return await response.json();
-    };
-
-    return await performSearch({ "email": { eq: email } });
-};
-
-// Search Employee by osOwner field (employees have osOwner set to their email)
-export const searchEmployeeByOsOwner = async (email: string) => {
     const response = await fetch(`${getBaseUrl()}/registry/api/v1/Employee/search`, {
         method: "POST",
         headers: {
@@ -99,15 +60,17 @@ export const searchEmployeeByOsOwner = async (email: string) => {
             "Accept": "application/json",
         },
         credentials: "include",
-        body: JSON.stringify({ filters: { "osOwner": { eq: email } } }),
+        body: JSON.stringify({ filters: { "email": { eq: email } } }),
     });
 
     if (!response.ok) {
         if (response.status === 401) handleUnauthorized();
-        throw new Error(`Search by osOwner failed: ${response.status}`);
+        throw new Error(`Search failed with status: ${response.status}`);
     }
     return await response.json();
 };
+
+
 
 // Get Employee by ID
 export const getEmployeeById = async (osid: string) => {
@@ -136,7 +99,6 @@ export const inviteEmployee = async (employeeData: {
     mobile?: string;
     role?: 'admin' | 'employee';
 }): Promise<{ isDuplicate?: boolean; result?: any }> => {
-    // Wrap the flat data in Employee object as per the API format
     const payload = {
         Employee: employeeData
     };
@@ -147,6 +109,8 @@ export const inviteEmployee = async (employeeData: {
             "Content-Type": "application/json",
             "Accept": "application/json",
         },
+        credentials: "omit",
+        cache: "no-store",
         body: JSON.stringify(payload),
     });
 
@@ -239,28 +203,73 @@ const VC_CONTEXT = [
     "https://w3id.org/security/suites/ed25519-2020/v1",
 ];
 
+// Normalize API response to array of credentials
+const normalizeCredentialsResponse = (data: any): any[] => {
+    if (Array.isArray(data)) return data;
+    
+    const possibleArrayFields = ['credentials', 'content', 'result'];
+    const arrayField = possibleArrayFields.find(field => data?.[field]);
+    
+    if (arrayField) {
+        return Array.isArray(data[arrayField]) ? data[arrayField] : [data[arrayField]];
+    }
+    
+    return data?.credential ? [data] : [];
+};
+
+// Extract credential ID from various response structures
+const extractCredentialId = (item: any): string | null => {
+    return item?.credential?.id || item?.id || null;
+};
+
+// Extract subject ID from credential
+const extractSubjectId = (item: any): string | null => {
+    return item?.credential?.credentialSubject?.id || item?.credentialSubject?.id || null;
+};
+
+// Check if credential matches the given osid
+const isMatchingCredential = (item: any, osid: string): boolean => {
+    const tags = item?.tags || [];
+    const subjectId = extractSubjectId(item);
+    
+    return tags.includes(osid) || 
+           subjectId === `did:rcw:${osid}` || 
+           subjectId === osid;
+};
+
 // Check if a certificate has already been issued for this employee
 export const checkCertificateIssued = async (osid: string): Promise<{ issued: boolean; credentialId: string | null }> => {
     try {
-        const tagsRes = await fetch(
+        const response = await fetch(
             `${getBaseUrl()}/credential/credentials?tags=${encodeURIComponent(osid)}`,
             {
                 headers: { "Accept": "application/json" },
                 credentials: "include",
             }
         );
-        if (tagsRes.ok) {
-            const creds = await tagsRes.json();
-            if (Array.isArray(creds) && creds.length > 0 && creds[0]?.id) {
-                const subject = creds[0]?.credentialSubject;
-                if (subject?.name && subject?.position) {
-                    return { issued: true, credentialId: creds[0].id };
-                }
-            }
+        
+        if (!response.ok) {
+            return { issued: false, credentialId: null };
+        }
+        
+        const data = await response.json();
+        const credentials = normalizeCredentialsResponse(data);
+        
+        const matchedCredential = credentials.find(item => {
+            const credentialId = extractCredentialId(item);
+            return credentialId && isMatchingCredential(item, osid);
+        });
+        
+        if (matchedCredential) {
+            return { 
+                issued: true, 
+                credentialId: extractCredentialId(matchedCredential) 
+            };
         }
     } catch (e) {
-        // Certificate check failed - return not issued
+        console.error('Error checking certificate:', e);
     }
+    
     return { issued: false, credentialId: null };
 };
 
@@ -269,21 +278,30 @@ export const issueEmployeeCertificate = async (osid: string): Promise<string> =>
     const empRes = await getEmployeeById(osid);
     const empData = empRes?.Employee || empRes;
     if (!empData) throw new Error("Failed to fetch employee data for credential issuance");
-    const name = empData?.fullName || empData?.name || "Unknown";
+
+    // Map schema fields to credential fields
+    const name = empData?.fullName || "Unknown";
     const email = empData?.email || "";
     const personalIdentification = empData?.personalIdentification || "";
     const position = empData?.positionName || "Employee";
     const department = empData?.departmentName || "";
-    const institution = empData?.companyName || empData?.email || "Sunbird RC";
+    const institution = empData?.companyName || "Sunbird RC";
     const dateOfHire = empData?.admissionDate || "";
+    const exitDate = empData?.contractExpiration || "";
+    const status = empData?.statusName || "active";
+    const documentType = empData?.typeIdentification || "";
+
+    // Use admissionDate as issuanceDate, contractExpiration as expirationDate
+    const issuanceDate = dateOfHire || new Date().toISOString();
+    const expirationDate = exitDate || "2099-12-31T23:59:59.999Z";
 
     const issuePayload = {
         credential: {
             "@context": VC_CONTEXT,
             type: ["VerifiableCredential", "Employee"],
             issuer: getIssuerDid(),
-            issuanceDate: new Date().toISOString(),
-            expirationDate: "2030-12-31T00:00:00.000Z",
+            issuanceDate,
+            expirationDate,
             credentialSubject: {
                 id: `did:rcw:${osid}`,
                 type: "Employee",
@@ -293,8 +311,10 @@ export const issueEmployeeCertificate = async (osid: string): Promise<string> =>
                 position,
                 ...(department && { department }),
                 ...(personalIdentification && { personalIdentification }),
-                status: "active",
+                ...(documentType && { documentType }),
+                status: status.toLowerCase().includes("active") || status.toLowerCase().includes("activo") ? "active" : "inactive",
                 ...(dateOfHire && { dateOfHire }),
+                ...(exitDate && { exitDate }),
             },
             credentialSchema: {
                 id: getSchemaId(),
@@ -306,45 +326,52 @@ export const issueEmployeeCertificate = async (osid: string): Promise<string> =>
         tags: ["employee", osid],
     };
 
-    const issueRes = await fetch(`${getBaseUrl()}/credential/credentials/issue`, {
+    const response = await fetch(`${getBaseUrl()}/credential/credentials/issue`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Accept": "application/json" },
         credentials: "include",
         body: JSON.stringify(issuePayload),
     });
-    if (!issueRes.ok) {
-        const err = await issueRes.text();
+
+    if (!response.ok) {
+        const err = await response.text();
         throw new Error(`Failed to issue credential: ${err}`);
     }
-    const issued = await issueRes.json();
+
+    const issued = await response.json();
     const credentialId = issued?.credential?.id || issued?.id || "";
     if (!credentialId) throw new Error("Credential issued but no ID returned");
+    
     return credentialId;
 };
 
-// Download Employee Certificate as PDF
+// Download Employee Certificate as PDF — auto-issues if not already issued
 export const downloadEmployeeCertificate = async (osid: string): Promise<Blob> => {
-    const { issued, credentialId } = await checkCertificateIssued(osid);
+    let { issued, credentialId } = await checkCertificateIssued(osid);
+
     if (!issued || !credentialId) {
-        throw new Error("No certificate has been issued for this employee yet. Please contact your administrator.");
+        // Certificate not yet issued — issue it now, then fetch the ID
+        credentialId = await issueEmployeeCertificate(osid);
     }
 
-    const pdfRes = await fetch(
+    const response = await fetch(
         `${getBaseUrl()}/credential/credentials/${encodeURIComponent(credentialId)}`,
         {
             method: "GET",
             headers: {
                 "Accept": "application/pdf",
-                "templateId": getTemplateId(),
+                "templateid": getTemplateId(),  // lowercase 'templateid' as required by credential service
             },
             credentials: "include",
         }
     );
-    if (!pdfRes.ok) {
-        const err = await pdfRes.text();
-        throw new Error(`Failed to download certificate: ${pdfRes.status} ${err}`);
+
+    if (!response.ok) {
+        const err = await response.text();
+        throw new Error(`Failed to download certificate: ${response.status} ${err}`);
     }
-    return await pdfRes.blob();
+
+    return await response.blob();
 };
 
 // Update Employee (Admin) - using flat schema format

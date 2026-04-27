@@ -8,7 +8,7 @@ import { User, Loader2, AlertCircle, Download, CheckCircle2 } from "lucide-react
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { searchAdminByEmail, getAdminById } from "@/lib/api";
-import { searchEmployeeByOsOwner, getEmployeeById, searchAllEmployees, downloadEmployeeCertificate, checkCertificateIssued } from "@/lib/employeeApi";
+import { searchEmployeeByEmail, getEmployeeById, searchAllEmployees, downloadEmployeeCertificate, checkCertificateIssued } from "@/lib/employeeApi";
 import { Badge } from "@/components/ui/badge";
 
 const ViewProfile = () => {
@@ -122,16 +122,16 @@ const ViewProfile = () => {
         return [];
       };
 
-      // Method 1: Search by osOwner first (employees have osOwner = their email)
+      // Method 1: Search by email
       if (!osid) {
         try {
-          const ownerResults = await searchEmployeeByOsOwner(email);
-          const found = findByEmail(extractArray(ownerResults), email);
+          const emailResults = await searchEmployeeByEmail(email);
+          const found = findByEmail(extractArray(emailResults), email);
           if (found) {
             osid = found.osid || found.id;
           }
         } catch (err) {
-          // osOwner search failed for employee lookup
+          // Email search failed for employee lookup
         }
       }
 

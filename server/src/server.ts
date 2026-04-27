@@ -20,6 +20,7 @@ declare module 'express-session' {
     expiresAt: number;  // Unix ms — when the access token expires
     userEmail: string;
     userName: string;
+    userPersonalId?: string;  // cedula from OIDC sub — primary identifier
     extOidcState?: string;
   }
 }
@@ -39,15 +40,16 @@ app.set('trust proxy', 1);
 // Session middleware — must run before all routes.
 // Uses PostgreSQL as the session store (same instance Hydra uses).
 // SameSite=lax is required: 'strict' drops the cookie on the Hydra redirect.
+// Excludes /invite endpoints to prevent session creation on public invite APIs.
 // ---------------------------------------------------------------------------
 const PgStore = connectPg(session);
-app.use(session({
+const sessionMiddleware = session({
   store: new PgStore({
     conString: process.env.SESSION_DB_URL,
     createTableIfMissing: true,
     tableName: 'rc_admin_sessions',
   }),
-  secret: process.env.SESSION_SECRET || 'fallback-dev-secret-replace-in-prod',
+  secret: process.env.SESSION_SECRET,
   name: 'rc-session',
   resave: false,
   saveUninitialized: false,
@@ -61,7 +63,16 @@ app.use(session({
     sameSite: 'lax',
     maxAge: 24 * 60 * 60 * 1000,
   },
-}));
+});
+
+// Apply session middleware conditionally — skip for /invite endpoints
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const fullPath = req.url || req.path;
+  if (fullPath.includes('/invite')) {
+    return next();
+  }
+  sessionMiddleware(req, res, next);
+});
 
 // ---------------------------------------------------------------------------
 // Runtime config endpoint
@@ -117,6 +128,7 @@ app.get('/auth/ext-redirect', (req: Request, res: Response) => {
   });
 });
 
+
 // ---------------------------------------------------------------------------
 // Hydra Admin helper — server-side only, never sent to the browser.
 // ---------------------------------------------------------------------------
@@ -146,8 +158,8 @@ async function refreshSessionToken(refreshToken: string): Promise<RefreshedToken
     body: new URLSearchParams({
       grant_type: 'refresh_token',
       refresh_token: refreshToken,
-      client_id: clientId!,
-      client_secret: clientSecret!,
+      client_id: clientId,
+      client_secret: clientSecret,
     }),
   });
 
@@ -246,12 +258,6 @@ app.post('/auth/token', express.urlencoded({ extended: false }), express.json(),
 
   const clientId = process.env.VITE_OAUTH2_CLIENT_ID;
   const clientSecret = process.env.OAUTH2_CLIENT_SECRET;
-  const hydraUrl = hydraPublicUrl();
-
-  if (!clientId || !clientSecret) {
-    res.status(500).json({ error: 'OAuth2 client credentials not configured on server' });
-    return;
-  }
 
   if (grant_type !== 'authorization_code') {
     res.status(400).json({ error: 'Only authorization_code grant is supported on this endpoint' });
@@ -265,7 +271,7 @@ app.post('/auth/token', express.urlencoded({ extended: false }), express.json(),
 
   try {
     // Exchange code for tokens
-    const tokenRes = await fetch(`${hydraUrl}/oauth2/token`, {
+    const tokenRes = await fetch(`${hydraPublicUrl()}/oauth2/token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
@@ -289,6 +295,7 @@ app.post('/auth/token', express.urlencoded({ extended: false }), express.json(),
     // Fetch user identity from Hydra userinfo endpoint
     let userEmail = '';
     let userName = '';
+    const hydraUrl = hydraPublicUrl();
     try {
       const uiRes = await fetch(`${hydraUrl}/userinfo`, {
         headers: { Authorization: `Bearer ${tokens.access_token}` },
@@ -426,6 +433,7 @@ app.post('/auth/ext-token', express.urlencoded({ extended: false }), express.jso
     // Store interim identity in session — no Hydra token yet at this stage
     req.session.userEmail = userEmail;
     req.session.userName = userName;
+    req.session.userPersonalId = sub;  // cedula from OIDC sub — used for registry lookup
 
     // Return only identity claims — the ext access_token never leaves the server
     res.json({ email: userEmail, name: userName, sub });
@@ -563,9 +571,13 @@ app.get('/auth/role', async (req: Request, res: Response) => {
     return;
   }
 
+  // personalId (cedula from OIDC sub) is the primary identifier — always present for
+  // SSO users. email is kept as a fallback for sessions established before this change.
+  const personalId = req.session.userPersonalId;
   const email = req.session.userEmail;
-  if (!email) {
-    res.status(400).json({ error: 'No email in session' });
+
+  if (!personalId && !email) {
+    res.status(400).json({ error: 'No identifier in session' });
     return;
   }
 
@@ -597,22 +609,30 @@ app.get('/auth/role', async (req: Request, res: Response) => {
   };
 
   // Unwrap { Employee: {...} } wrappers and skip sub-records (contactDetails, etc.)
-  // that the Registry sometimes returns mixed in with real Employee entities.
   const getEmployeeRecords = (data: any): any[] =>
     Array.isArray(data) ? data
       : Array.isArray(data?.Employee) ? data.Employee
       : Array.isArray(data?.data) ? data.data
       : [];
 
+  // Find a record whose personalIdentification matches the given cedula.
+  const findByPersonalId = (data: any, pid: string): any | null => {
+    const records = getEmployeeRecords(data);
+    for (const raw of records) {
+      const emp = raw?.Employee || raw;
+      if (!emp.osid && !emp.id) continue;
+      if (emp.personalIdentification === pid) return emp;
+    }
+    return null;
+  };
+
+  // Fallback: find by email field (for legacy records that may have email set).
   const findByEmail = (data: any, target: string): any | null => {
     const lc = target.toLowerCase();
     const records = getEmployeeRecords(data);
-
     for (const raw of records) {
       const emp = raw?.Employee || raw;
-      // Skip sub-records - they don't have osid/id
       if (!emp.osid && !emp.id) continue;
-      // Prioritize flat schema email over nested
       const empEmail = (emp.email || emp.contactDetails?.email || '').toLowerCase();
       if (empEmail && empEmail === lc) return emp;
     }
@@ -620,40 +640,51 @@ app.get('/auth/role', async (req: Request, res: Response) => {
   };
 
   try {
-    // Attempt 1 — flat email filter (prioritized for flat schema)
-    const data1 = await searchRegistry({ 'email': { eq: email } });
-    let emp = data1 ? findByEmail(data1, email) : null;
+    let emp: any = null;
 
-    // Attempt 2 — osOwner filter (employees have osOwner = their email)
-    if (!emp) {
-      const data2 = await searchRegistry({ osOwner: { eq: email } });
+    // Attempt 1 — personalIdentification filter (primary — cedula from OIDC sub)
+    if (personalId) {
+      const data1 = await searchRegistry({ personalIdentification: { eq: personalId } });
+      emp = data1 ? findByPersonalId(data1, personalId) : null;
+    }
+
+    // Attempt 2 — email filter (fallback for legacy sessions without personalId)
+    if (!emp && email) {
+      const data2 = await searchRegistry({ email: { eq: email } });
       emp = data2 ? findByEmail(data2, email) : null;
     }
 
-    // Attempt 3 — paged unfiltered fallback + client-side match
-    // Admin token may see many records, so cap each request and page until found.
+    // Attempt 3 — osOwner filter (fallback)
+    if (!emp && email) {
+      const data3 = await searchRegistry({ osOwner: { eq: email } });
+      emp = data3 ? findByEmail(data3, email) : null;
+    }
+
+    // Attempt 4 — paged unfiltered fallback + client-side match by personalId or email
     if (!emp) {
       const pageSize = 100;
       let offset = 0;
       while (!emp) {
-        const data3 = await searchRegistry({}, { limit: pageSize, offset });
-        if (!data3) break;
-        emp = findByEmail(data3, email);
+        const data4 = await searchRegistry({}, { limit: pageSize, offset });
+        if (!data4) break;
+        emp = (personalId ? findByPersonalId(data4, personalId) : null)
+           || (email ? findByEmail(data4, email) : null);
         if (emp) break;
-        const records = getEmployeeRecords(data3);
+        const records = getEmployeeRecords(data4);
         if (records.length < pageSize) break;
         offset += pageSize;
       }
     }
 
     if (emp) {
-      // Prioritize flat schema role over nested
       const role = (emp.role || emp.systemDetails?.role || 'employee').toLowerCase();
       const osid: string | null = emp.osid || emp.id || null;
       res.json({ role, osid });
-    } else {
-      res.json({ role: 'employee', osid: null });
+      return;
     }
+
+    // No registry record found — default to employee
+    res.json({ role: 'employee', osid: null });
   } catch (err) {
     res.status(502).json({ error: 'Registry lookup failed' });
   }
@@ -736,8 +767,31 @@ const registryProxy = createProxyMiddleware({
   target: process.env.API_BASE_URL || 'http://localhost:8081',
   changeOrigin: true,
   pathRewrite: (path) => '/api' + path,
+  selfHandleResponse: false,
 });
-app.use('/registry/api', injectSessionToken, retryOn401(registryProxy));
+
+// Response interceptor to strip Set-Cookie for invite endpoints
+const stripCookieForInvite: RequestHandler = (req: Request, res: Response, next: NextFunction) => {
+  if (req.path && req.path.includes('/invite')) {
+    const originalSetHeader = res.setHeader.bind(res);
+    res.setHeader = function(name: string, value: any) {
+      if (name.toLowerCase() === 'set-cookie') {
+        return res;
+      }
+      return originalSetHeader(name, value);
+    };
+  }
+  next();
+};
+
+// Conditionally apply injectSessionToken — skip for /invite endpoints
+app.use('/registry/api', stripCookieForInvite, (req: Request, res: Response, next: NextFunction) => {
+  if (req.path.includes('/invite')) {
+    delete req.headers['cookie'];
+    return registryProxy(req, res, next);
+  }
+  injectSessionToken(req, res, next);
+}, retryOn401(registryProxy));
 
 // Backend API (general — no session requirement)
 app.use(

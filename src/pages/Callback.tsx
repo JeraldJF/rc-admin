@@ -40,13 +40,9 @@ export default function Callback() {
             throw new Error(`External token exchange failed: ${await tokenResponse.text()}`);
           }
 
-          const { email: userEmail, name: userName } = await tokenResponse.json();
+          const { email: userEmail, name: userName, sub } = await tokenResponse.json();
 
-          // Role lookup is skipped here — no Hydra token exists yet at this stage.
-          // The real role is fetched after the full Hydra flow completes (Step 15).
-          // Per design Q2: default to 'employee'; Hydra login context carries it forward.
           const userRole = 'employee';
-
           const loginChallenge = sessionStorage.getItem('login_challenge');
           if (!loginChallenge) {
             throw new Error('Login challenge not found. Please restart the login flow.');
@@ -60,7 +56,9 @@ export default function Callback() {
               subject: userEmail,
               remember: true,
               remember_for: 3600,
-              context: { email: userEmail, role: userRole, name: userName },
+              // personalId carries the cedula (OIDC sub) into the consent step
+              // so it can be added to the JWT as ext.personalIdentification
+              context: { email: userEmail, role: userRole, name: userName, personalId: sub },
             }),
           });
 
