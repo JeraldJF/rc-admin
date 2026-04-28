@@ -8,7 +8,7 @@ import { User, Loader2, AlertCircle, Download, CheckCircle2 } from "lucide-react
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { searchAdminByEmail, getAdminById } from "@/lib/api";
-import { searchEmployeeByEmail, getEmployeeById, searchAllEmployees, downloadEmployeeCertificate, checkCertificateIssued } from "@/lib/employeeApi";
+import { searchEmployeeByEmail, searchEmployeeByPersonalId, getEmployeeById, searchAllEmployees, downloadEmployeeCertificate, checkCertificateIssued } from "@/lib/employeeApi";
 import { Badge } from "@/components/ui/badge";
 
 const ViewProfile = () => {
@@ -101,14 +101,20 @@ const ViewProfile = () => {
         }
       }
 
-      // Helper: unwrap { Employee: {...} } wrapper and match by email.
-      // Requires systemDetails to be present — sub-records (contactDetails, etc.)
-      // returned by the Registry API don't have systemDetails and must be skipped.
+      const findByPersonalId = (records: any[], pid: string): any | null => {
+        for (const raw of records) {
+          const emp = raw?.Employee || raw;
+          if (!emp.osid && !emp.id) continue;
+          if (emp.personalIdentification === pid) return emp;
+        }
+        return null;
+      };
+
       const findByEmail = (records: any[], targetEmail: string): any | null => {
         const target = targetEmail.toLowerCase();
         for (const raw of records) {
           const emp = raw?.Employee || raw;
-          if (!emp.systemDetails) continue; // skip sub-records
+          if (!emp.osid && !emp.id) continue;
           const empEmail = (emp.contactDetails?.email || emp.email || "").toLowerCase();
           if (empEmail && empEmail === target) return emp;
         }
@@ -122,7 +128,21 @@ const ViewProfile = () => {
         return [];
       };
 
-      // Method 1: Search by email
+      // Method 1: Search by personalId (cédula) — primary; works for records without email
+      const personalId = sessionStorage.getItem('userPersonalId');
+      if (!osid && personalId) {
+        try {
+          const pidResults = await searchEmployeeByPersonalId(personalId);
+          const found = findByPersonalId(extractArray(pidResults), personalId);
+          if (found) {
+            osid = found.osid || found.id;
+          }
+        } catch (err) {
+          // personalId search failed
+        }
+      }
+
+      // Method 2: Search by email (fallback for records that have email set)
       if (!osid) {
         try {
           const emailResults = await searchEmployeeByEmail(email);
@@ -135,14 +155,13 @@ const ViewProfile = () => {
         }
       }
 
-      // Method 2: Search all records (no filter) only as a last resort and match client-side by email.
-      // Nested-field filters (e.g. contactDetails.email) cause the Registry to return
-      // child sub-records instead of the parent Employee entity, so we avoid them.
-      // With ABAC: admin tokens return all records; employee tokens return only their own.
+      // Method 3: Unfiltered scan — last resort. With ABAC, employee token returns only own record(s).
       if (!osid) {
         try {
           const allEmployees = await searchAllEmployees();
-          const found = findByEmail(extractArray(allEmployees), email);
+          const records = extractArray(allEmployees);
+          const found = (personalId ? findByPersonalId(records, personalId) : null)
+                     || findByEmail(records, email);
           if (found) {
             osid = found.osid || found.id;
           }

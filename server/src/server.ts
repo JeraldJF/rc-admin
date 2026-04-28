@@ -428,7 +428,9 @@ app.post('/auth/ext-token', express.urlencoded({ extended: false }), express.jso
       [extIdClaims.given_name, extIdClaims.family_name].filter(Boolean).join(' ') ||
       '';
 
-    const sub = extIdClaims.sub || userInfo.sub || '';
+    // preferred_username is the cédula — sub is a UUID from cuenta.digital.gob.do
+    const sub = extIdClaims.preferred_username || userInfo.preferred_username ||
+                extIdClaims.sub || userInfo.sub || '';
 
     // Store interim identity in session — no Hydra token yet at this stage
     req.session.userEmail = userEmail;

@@ -72,6 +72,7 @@ export default function Callback() {
           sessionStorage.setItem('userEmail', userEmail);
           sessionStorage.setItem('userRole', userRole);
           if (userName) sessionStorage.setItem('userName', userName);
+          if (sub) sessionStorage.setItem('userPersonalId', sub);
 
           window.location.href = rewriteHydraRedirect(redirect_to);
         } catch (err: any) {
@@ -120,13 +121,11 @@ export default function Callback() {
         const roleRes = await fetch('/auth/role', { credentials: 'include' });
         if (!roleRes.ok) throw new Error(`Role lookup failed: ${await roleRes.text()}`);
         const { role: rcRole, osid: rcOsid } = await roleRes.json();
-        console.log('[Callback] Role lookup result:', { rcRole, rcOsid });
 
         if (rcOsid) sessionStorage.setItem('employeeOsid', rcOsid);
         const role = (rcRole || 'employee').toLowerCase();
         sessionStorage.setItem('userRole', role);
-
-        console.log('[Callback] Final navigation decision:', { role, email });
+        
         if (role === 'admin') {
           navigate('/registry');
         } else {
