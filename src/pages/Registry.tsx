@@ -295,8 +295,8 @@ const Registry = () => {
             </div>
           </div>
         ) : (
-          <div className="rounded-xl border border-border bg-card overflow-hidden shadow-lg">
-            <Table className="relative">
+          <div className="rounded-xl border border-border bg-card overflow-x-auto shadow-lg">
+            <Table className="relative w-full min-w-0">
               <TableHeader className="sticky top-0 z-10">
                 <TableRow className="bg-secondary/95 backdrop-blur-sm border-b border-border/60">
                   <TableHead className="uppercase text-[11px] tracking-wider font-semibold text-muted-foreground">{t("table.name")}</TableHead>
