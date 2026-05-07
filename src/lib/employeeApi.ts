@@ -350,17 +350,21 @@ export const downloadEmployeeCertificate = async (osid: string): Promise<Blob> =
     let { issued, credentialId } = await checkCertificateIssued(osid);
 
     if (!issued || !credentialId) {
-        // Certificate not yet issued — issue it now, then fetch the ID
         credentialId = await issueEmployeeCertificate(osid);
     }
 
+    return fetchCertificatePdf(credentialId);
+};
+
+// Fetch an already-issued certificate as PDF by credential ID (no issuance)
+export const fetchCertificatePdf = async (credentialId: string): Promise<Blob> => {
     const response = await fetch(
         `${getBaseUrl()}/credential/credentials/${encodeURIComponent(credentialId)}`,
         {
             method: "GET",
             headers: {
                 "Accept": "application/pdf",
-                "templateid": getTemplateId(),  // lowercase 'templateid' as required by credential service
+                "templateid": getTemplateId(),
             },
             credentials: "include",
         }
