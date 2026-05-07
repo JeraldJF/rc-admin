@@ -8,7 +8,7 @@ import { User, Loader2, AlertCircle, Download, CheckCircle2 } from "lucide-react
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { searchAdminByEmail, getAdminById } from "@/lib/api";
-import { searchEmployeeByEmail, searchEmployeeByPersonalId, getEmployeeById, searchAllEmployees, downloadEmployeeCertificate, checkCertificateIssued } from "@/lib/employeeApi";
+import { searchEmployeeByEmail, searchEmployeeByPersonalId, searchAllEmployees, downloadEmployeeCertificate, checkCertificateIssued } from "@/lib/employeeApi";
 import { Badge } from "@/components/ui/badge";
 
 const ViewProfile = () => {
@@ -86,20 +86,7 @@ const ViewProfile = () => {
     setIsLoading(true);
     try {
       let osid = "";
-
-      // Method 0: Use osid stored during login (fastest, works for all roles)
-      const storedOsid = sessionStorage.getItem('employeeOsid');
-      if (storedOsid) {
-        try {
-          const record = await getEmployeeById(storedOsid);
-          const data = record?.Employee || record;
-          if (data?.osid) {
-            osid = data.osid;
-          }
-        } catch (err) {
-          // Direct osid fetch failed, trying search
-        }
-      }
+      let foundData: any = null;
 
       const findByPersonalId = (records: any[], pid: string): any | null => {
         for (const raw of records) {
@@ -128,14 +115,15 @@ const ViewProfile = () => {
         return [];
       };
 
-      // Method 1: Search by personalId (cédula) — primary; works for records without email
+      // Method 1: Search by personalId (cédula) — primary; works for records without email.
       const personalId = sessionStorage.getItem('userPersonalId');
-      if (!osid && personalId) {
+      if (!foundData && personalId) {
         try {
           const pidResults = await searchEmployeeByPersonalId(personalId);
           const found = findByPersonalId(extractArray(pidResults), personalId);
           if (found) {
             osid = found.osid || found.id;
+            foundData = found;
           }
         } catch (err) {
           // personalId search failed
@@ -143,12 +131,13 @@ const ViewProfile = () => {
       }
 
       // Method 2: Search by email (fallback for records that have email set)
-      if (!osid) {
+      if (!foundData) {
         try {
           const emailResults = await searchEmployeeByEmail(email);
           const found = findByEmail(extractArray(emailResults), email);
           if (found) {
             osid = found.osid || found.id;
+            foundData = found;
           }
         } catch (err) {
           // Email search failed for employee lookup
@@ -156,7 +145,7 @@ const ViewProfile = () => {
       }
 
       // Method 3: Unfiltered scan — last resort. With ABAC, employee token returns only own record(s).
-      if (!osid) {
+      if (!foundData) {
         try {
           const allEmployees = await searchAllEmployees();
           const records = extractArray(allEmployees);
@@ -164,27 +153,29 @@ const ViewProfile = () => {
                      || findByEmail(records, email);
           if (found) {
             osid = found.osid || found.id;
+            foundData = found;
           }
         } catch (err) {
           // Fallback search failed
         }
       }
 
-      if (osid) {
-        sessionStorage.setItem("employeeOsid", osid);
+      // Resolve final osid — prefer freshly-found, fall back to session-stored
+      const effectiveOsid = osid || sessionStorage.getItem('employeeOsid') || "";
+
+      if (effectiveOsid) {
+        sessionStorage.setItem("employeeOsid", effectiveOsid);
 
         // Check if admin has issued a certificate for this employee
         setCertChecking(true);
-        checkCertificateIssued(osid).then(({ issued }) => {
+        checkCertificateIssued(effectiveOsid).then(({ issued }) => {
           setCertIssued(issued);
           setCertChecking(false);
         }).catch(() => setCertChecking(false));
 
-        // Fetch full details using the efficient ID endpoint
-        const response = await getEmployeeById(osid);
-
-        // Robust extraction: Handle if it's nested under Employee, result.Employee, or direct
-        let employeeDetails: any = response;
+        // Use data from search result directly — avoids GET /Employee/{osid} which requires
+        // osOwner to be set (fails for anonymously-invited records with employee tokens).
+        let employeeDetails: any = foundData || {};
 
         // Level 1: Check if response is array
         if (Array.isArray(employeeDetails)) {
