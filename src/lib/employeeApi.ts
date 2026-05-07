@@ -350,7 +350,6 @@ export const downloadEmployeeCertificate = async (osid: string): Promise<Blob> =
     let { issued, credentialId } = await checkCertificateIssued(osid);
 
     if (!issued || !credentialId) {
-        // Certificate not yet issued — issue it now, then fetch the ID
         credentialId = await issueEmployeeCertificate(osid);
     }
 

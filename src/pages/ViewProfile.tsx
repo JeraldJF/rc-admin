@@ -223,13 +223,9 @@ const ViewProfile = () => {
       return;
     }
 
-    if (!certIssued || !certId) {
-      toast({ title: "Certificate not yet issued", description: "Your certificate has not been issued yet. Please contact your administrator.", variant: "default" });
-      return;
-    }
-
     setDownloadingId(osid);
     try {
+      if (!certId) throw new Error("Certificate not found. Please refresh and try again.");
       const blob = await fetchCertificatePdf(certId);
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
