@@ -8,7 +8,7 @@ import { User, Loader2, AlertCircle, Download, CheckCircle2 } from "lucide-react
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { searchAdminByEmail, getAdminById } from "@/lib/api";
-import { searchEmployeeByEmail, searchEmployeeByPersonalId, searchAllEmployees, downloadEmployeeCertificate, checkCertificateIssued } from "@/lib/employeeApi";
+import { searchEmployeeByEmail, searchEmployeeByPersonalId, searchAllEmployees, fetchCertificatePdf, checkCertificateIssued } from "@/lib/employeeApi";
 import { Badge } from "@/components/ui/badge";
 
 const ViewProfile = () => {
@@ -21,6 +21,7 @@ const ViewProfile = () => {
 
   const [profileNotFound, setProfileNotFound] = useState(false);
   const [certIssued, setCertIssued] = useState(false);
+  const [certId, setCertId] = useState<string | null>(null);
   const [certChecking, setCertChecking] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -115,81 +116,58 @@ const ViewProfile = () => {
         return [];
       };
 
-      // Method 1: Search by personalId (cédula) — primary; works for records without email.
+      // Method 1: Search by personalId (cédula) — primary
       const personalId = sessionStorage.getItem('userPersonalId');
       if (!foundData && personalId) {
         try {
           const pidResults = await searchEmployeeByPersonalId(personalId);
           const found = findByPersonalId(extractArray(pidResults), personalId);
-          if (found) {
-            osid = found.osid || found.id;
-            foundData = found;
-          }
-        } catch (err) {
-          // personalId search failed
-        }
+          if (found) { osid = found.osid || found.id; foundData = found; }
+        } catch { /* personalId search failed */ }
       }
 
-      // Method 2: Search by email (fallback for records that have email set)
+      // Method 2: Search by email (fallback)
       if (!foundData) {
         try {
           const emailResults = await searchEmployeeByEmail(email);
           const found = findByEmail(extractArray(emailResults), email);
-          if (found) {
-            osid = found.osid || found.id;
-            foundData = found;
-          }
-        } catch (err) {
-          // Email search failed for employee lookup
-        }
+          if (found) { osid = found.osid || found.id; foundData = found; }
+        } catch { /* email search failed */ }
       }
 
-      // Method 3: Unfiltered scan — last resort. With ABAC, employee token returns only own record(s).
+      // Method 3: Unfiltered scan — last resort (ABAC returns only own record for employee token)
       if (!foundData) {
         try {
           const allEmployees = await searchAllEmployees();
           const records = extractArray(allEmployees);
           const found = (personalId ? findByPersonalId(records, personalId) : null)
                      || findByEmail(records, email);
-          if (found) {
-            osid = found.osid || found.id;
-            foundData = found;
-          }
-        } catch (err) {
-          // Fallback search failed
-        }
+          if (found) { osid = found.osid || found.id; foundData = found; }
+        } catch { /* fallback search failed */ }
       }
 
-      // Resolve final osid — prefer freshly-found, fall back to session-stored
       const effectiveOsid = osid || sessionStorage.getItem('employeeOsid') || "";
 
       if (effectiveOsid) {
         sessionStorage.setItem("employeeOsid", effectiveOsid);
 
-        // Check if admin has issued a certificate for this employee
         setCertChecking(true);
-        checkCertificateIssued(effectiveOsid).then(({ issued }) => {
+        checkCertificateIssued(effectiveOsid).then(({ issued, credentialId }) => {
           setCertIssued(issued);
+          setCertId(credentialId);
           setCertChecking(false);
         }).catch(() => setCertChecking(false));
 
-        // Use data from search result directly — avoids GET /Employee/{osid} which requires
-        // osOwner to be set (fails for anonymously-invited records with employee tokens).
         let employeeDetails: any = foundData || {};
 
-        // Level 1: Check if response is array
         if (Array.isArray(employeeDetails)) {
           employeeDetails = employeeDetails.length > 0 ? employeeDetails[0] : {};
         }
-
-        // Level 2: Check for wrapper keys (common in Sunbird RC)
         if (employeeDetails.Employee) {
           employeeDetails = employeeDetails.Employee;
         } else if (employeeDetails.result?.Employee) {
           employeeDetails = employeeDetails.result.Employee;
         }
-
-        // Level 3: Check if wrapped content is array
         if (Array.isArray(employeeDetails)) {
           employeeDetails = employeeDetails.length > 0 ? employeeDetails[0] : {};
         }
@@ -199,7 +177,7 @@ const ViewProfile = () => {
         if (admissionRaw) {
           try { admissionFormatted = format(new Date(admissionRaw), "yyyy-MM-dd"); } catch { admissionFormatted = admissionRaw; }
         }
-        
+
         const exitRaw = employeeDetails.contractExpiration || "";
         let exitFormatted = "";
         if (exitRaw) {
@@ -225,7 +203,6 @@ const ViewProfile = () => {
           exitDate: exitFormatted,
         });
       } else {
-        // No RC record for this email — admin needs to create it first
         setProfileNotFound(true);
       }
     } catch (error) {
@@ -245,9 +222,15 @@ const ViewProfile = () => {
       toast({ title: "❌ Error", description: "Employee record not found", variant: "destructive" });
       return;
     }
+
+    if (!certIssued || !certId) {
+      toast({ title: "Certificate not yet issued", description: "Your certificate has not been issued yet. Please contact your administrator.", variant: "default" });
+      return;
+    }
+
     setDownloadingId(osid);
     try {
-      const blob = await downloadEmployeeCertificate(osid);
+      const blob = await fetchCertificatePdf(certId);
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
