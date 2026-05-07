@@ -24,11 +24,16 @@ export const rewriteHydraRedirect = (redirectTo: string): string => {
   try {
     const dest = new URL(redirectTo);
     const proxy = new URL(hydraPublic);
-    if (dest.origin === proxy.origin) return redirectTo;
+    const proxyBase = proxy.pathname.replace(/\/$/, '');
+    // Already at the correct origin with the path prefix present — nothing to do.
+    if (dest.origin === proxy.origin && (!proxyBase || dest.pathname.startsWith(proxyBase + '/'))) {
+      return redirectTo;
+    }
     dest.protocol = proxy.protocol;
     dest.host = proxy.host;
-    const proxyBase = proxy.pathname.replace(/\/$/, '');
-    if (proxyBase) dest.pathname = proxyBase + dest.pathname;
+    if (proxyBase && !dest.pathname.startsWith(proxyBase + '/')) {
+      dest.pathname = proxyBase + dest.pathname;
+    }
     return dest.toString();
   } catch {
     return redirectTo;

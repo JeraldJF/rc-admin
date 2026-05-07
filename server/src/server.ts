@@ -138,6 +138,30 @@ const hydraAdminUrl = () =>
 const hydraPublicUrl = () =>
   (process.env.ORY_HYDRA_PUBLIC_URL || 'http://localhost:4444').replace(/\/$/, '');
 
+// Rewrites a Hydra-generated redirect_to URL (which uses Hydra's urls.self.public,
+// potentially with port 4444) to go through the app's /ory/hydra proxy path.
+// Mirrors the browser-side rewriteHydraRedirect in src/lib/oauth2.ts.
+function rewriteHydraUrl(redirectTo: string): string {
+  const proxyBase = process.env.VITE_ORY_HYDRA_PUBLIC; // e.g. https://host/ory/hydra
+  if (!proxyBase || !redirectTo) return redirectTo;
+  try {
+    const dest = new URL(redirectTo);
+    const proxy = new URL(proxyBase);
+    const proxyPath = proxy.pathname.replace(/\/$/, '');
+    if (dest.origin === proxy.origin && (!proxyPath || dest.pathname.startsWith(proxyPath + '/'))) {
+      return redirectTo;
+    }
+    dest.protocol = proxy.protocol;
+    dest.host = proxy.host;
+    if (proxyPath && !dest.pathname.startsWith(proxyPath + '/')) {
+      dest.pathname = proxyPath + dest.pathname;
+    }
+    return dest.toString();
+  } catch {
+    return redirectTo;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Token refresh helper — exchanges a refresh_token for a new access_token.
 // ---------------------------------------------------------------------------
@@ -483,7 +507,9 @@ app.post('/auth/hydra-accept-login', express.json(), async (req: Request, res: R
         body: JSON.stringify({ subject, remember, remember_for, context }),
       }
     );
-    res.status(r.status).json(await r.json());
+    const data = await r.json();
+    if (data.redirect_to) data.redirect_to = rewriteHydraUrl(data.redirect_to);
+    res.status(r.status).json(data);
   } catch (err) {
     console.error('[/auth/hydra-accept-login] Hydra request failed:', err);
     res.status(502).json({ error: 'Failed to reach Hydra admin' });
@@ -506,7 +532,9 @@ app.post('/auth/hydra-accept-consent', express.json(), async (req: Request, res:
         body: JSON.stringify(body),
       }
     );
-    res.status(r.status).json(await r.json());
+    const data = await r.json();
+    if (data.redirect_to) data.redirect_to = rewriteHydraUrl(data.redirect_to);
+    res.status(r.status).json(data);
   } catch (err) {
     console.error('[/auth/hydra-accept-consent] Hydra request failed:', err);
     res.status(502).json({ error: 'Failed to reach Hydra admin' });
