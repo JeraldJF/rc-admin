@@ -56,7 +56,9 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 const App = () => {
   const RootRedirect = () => {
     const isLoggedIn = sessionStorage.getItem("isLoggedIn") === "true";
-    return <Navigate to={isLoggedIn ? "/registry" : "/login"} replace />;
+    if (!isLoggedIn) return <Navigate to="/login" replace />;
+    const role = sessionStorage.getItem("userRole") || "admin";
+    return <Navigate to={role === "employee" ? "/profile" : "/registry"} replace />;
   };
 
   return (
