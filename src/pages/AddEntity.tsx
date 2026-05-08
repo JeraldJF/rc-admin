@@ -76,6 +76,7 @@ const AddEntity = () => {
           ...(formData.typeIdentification && { typeIdentification: formData.typeIdentification }),
           mobile: formData.mobile || "",
           role: 'employee',
+          statusName: 'Active',
           admissionDate: formData.dob,
           ...(formData.positionName && { positionName: formData.positionName }),
           ...(formData.departmentName && { departmentName: formData.departmentName }),
