@@ -8,7 +8,7 @@ import { User, Loader2, AlertCircle, Download, CheckCircle2 } from "lucide-react
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { searchAdminByEmail, getAdminById } from "@/lib/api";
-import { searchEmployeeByEmail, searchEmployeeByPersonalId, searchAllEmployees, fetchCertificatePdf, checkCertificateIssued } from "@/lib/employeeApi";
+import { searchEmployeeByEmail, searchEmployeeByPersonalId, fetchCertificatePdf, checkCertificateIssued } from "@/lib/employeeApi";
 import { Badge } from "@/components/ui/badge";
 
 const ViewProfile = () => {
@@ -133,17 +133,6 @@ const ViewProfile = () => {
           const found = findByEmail(extractArray(emailResults), email);
           if (found) { osid = found.osid || found.id; foundData = found; }
         } catch { /* email search failed */ }
-      }
-
-      // Method 3: Unfiltered scan — last resort (ABAC returns only own record for employee token)
-      if (!foundData) {
-        try {
-          const allEmployees = await searchAllEmployees();
-          const records = extractArray(allEmployees);
-          const found = (personalId ? findByPersonalId(records, personalId) : null)
-                     || findByEmail(records, email);
-          if (found) { osid = found.osid || found.id; foundData = found; }
-        } catch { /* fallback search failed */ }
       }
 
       const effectiveOsid = osid || sessionStorage.getItem('employeeOsid') || "";

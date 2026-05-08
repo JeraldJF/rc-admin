@@ -2,14 +2,9 @@ import { getConfig } from './config';
 
 const getBaseUrl = () => getConfig().VITE_API_BASE_URL || '';
 
-// Auto-logout on 401 — destroys the server session before redirecting
-const handleUnauthorized = async () => {
-  try {
-    await fetch('/auth/logout', { method: 'POST', credentials: 'include' });
-  } catch { /* ignore */ }
-  sessionStorage.clear();
-  window.location.href = "/login";
-};
+// 401 from registry = RBAC denial (wrong role in JWT), not session expiry.
+// Don't auto-logout on RBAC failures — caller decides how to handle.
+// Real session expiry is detected via /auth/me (called by layout/header).
 
 // Employee API Functions
 
@@ -29,8 +24,9 @@ export const searchAllEmployees = async (limit: number, offset: number, nameFilt
     });
 
     if (!response.ok) {
-        if (response.status === 401) handleUnauthorized();
-        throw new Error(`Search failed with status: ${response.status}`);
+        const err: any = new Error(`Search failed with status: ${response.status}`);
+        err.status = response.status;
+        throw err;
     }
     return await response.json();
 };
@@ -48,8 +44,9 @@ export const searchEmployeeByPersonalId = async (personalId: string) => {
     });
 
     if (!response.ok) {
-        if (response.status === 401) handleUnauthorized();
-        throw new Error(`Search by personalId failed: ${response.status}`);
+        const err: any = new Error(`Search by personalId failed: ${response.status}`);
+        err.status = response.status;
+        throw err;
     }
     return await response.json();
 };
@@ -67,8 +64,9 @@ export const searchEmployeeByEmail = async (email: string) => {
     });
 
     if (!response.ok) {
-        if (response.status === 401) handleUnauthorized();
-        throw new Error(`Search failed with status: ${response.status}`);
+        const err: any = new Error(`Search failed with status: ${response.status}`);
+        err.status = response.status;
+        throw err;
     }
     return await response.json();
 };
@@ -86,8 +84,9 @@ export const getEmployeeById = async (osid: string) => {
     });
 
     if (!response.ok) {
-        if (response.status === 401) handleUnauthorized();
-        throw new Error("Failed to fetch employee details");
+        const err: any = new Error("Failed to fetch employee details");
+        err.status = response.status;
+        throw err;
     }
 
     return await response.json();
@@ -134,8 +133,8 @@ export const inviteEmployee = async (employeeData: {
     return { result: data };
 };
 
-// Add Employee (Admin) - using flat schema format
-// noLogoutOn401: skip handleUnauthorized() so callers can attempt fallback paths.
+// Add Employee (Admin) - requires admin role in JWT.
+// Used by createEmployee as the preferred path; falls back to inviteEmployee on 401/403.
 export const addEmployee = async (employeeData: {
     fullName: string;
     email?: string;
@@ -150,7 +149,7 @@ export const addEmployee = async (employeeData: {
     contractExpiration?: string;
     statusName?: string;
     salary?: string;
-}, opts?: { noLogoutOn401?: boolean }) => {
+}) => {
     const response = await fetch(`${getBaseUrl()}/registry/api/v1/Employee`, {
         method: "POST",
         headers: {
@@ -158,11 +157,10 @@ export const addEmployee = async (employeeData: {
             "Accept": "application/json",
         },
         credentials: "include",
-        body: JSON.stringify(employeeData),
+        body: JSON.stringify({ Employee: employeeData }),
     });
 
     if (!response.ok) {
-        if (response.status === 401 && !opts?.noLogoutOn401) handleUnauthorized();
         const err: any = new Error("Failed to add employee");
         err.status = response.status;
         throw err;
@@ -195,7 +193,7 @@ export const createEmployee = async (
 ): Promise<{ isDuplicate?: boolean; result?: any }> => {
     // Path A — admin endpoint. Requires admin role in JWT.
     try {
-        const result = await addEmployee(employeeData, { noLogoutOn401: true });
+        const result = await addEmployee(employeeData);
         return { result };
     } catch (e: any) {
         const status = e?.status;
@@ -455,8 +453,9 @@ export const updateEmployee = async (employeeId: string, employeeData: Partial<{
     });
 
     if (!response.ok) {
-        if (response.status === 401) handleUnauthorized();
-        throw new Error("Failed to update employee");
+        const err: any = new Error("Failed to update employee");
+        err.status = response.status;
+        throw err;
     }
 
     return await response.json();
