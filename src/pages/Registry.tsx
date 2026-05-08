@@ -9,6 +9,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import {
   Pagination,
   PaginationContent,
+  PaginationEllipsis,
   PaginationItem,
   PaginationLink,
   PaginationNext,
@@ -53,25 +54,32 @@ const Registry = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [userRole, setUserRole] = useState<string>("admin");
   const [sortField, setSortField] = useState<SortField>("created");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
-  const recordsPerPage = 10;
+  const recordsPerPage = 100;
 
   useEffect(() => {
     const role = sessionStorage.getItem("userRole") || "admin";
     setUserRole(role);
-
-    // Fetch employees
-    fetchEmployees();
   }, []);
 
-  const fetchEmployees = async () => {
+  useEffect(() => {
+    fetchEmployees(currentPage, searchQuery);
+  }, [currentPage, searchQuery]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  const fetchEmployees = async (page: number, nameFilter: string) => {
     setIsLoading(true);
+    const offset = (page - 1) * recordsPerPage;
     try {
-      const response = await searchAllEmployees();
+      const response = await searchAllEmployees(recordsPerPage, offset, nameFilter || undefined);
     
       // Handle the various ways Sunbird RC can return data
       // Based on provided JSON: { "totalCount": 7, "data": [...] }
@@ -149,6 +157,7 @@ const Registry = () => {
         });
     
 
+      setTotalCount(response?.totalCount ?? employeeData.length);
       setEntities(employeeData);
     } catch (error) {
       toast({
@@ -169,13 +178,8 @@ const Registry = () => {
     }
   }, [searchParams]);
 
-  const filteredEntities = entities.filter((entity) => {
-    const matchesSearch = entity.name?.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesSearch;
-  });
-
-  // Sort entities if sort field is set
-  const sortedEntities = [...filteredEntities].sort((a, b) => {
+  // Sort current page entities
+  const sortedEntities = [...entities].sort((a, b) => {
     if (!sortField || !sortOrder) return 0;
 
     const dateA = new Date(a[sortField]).getTime();
@@ -184,9 +188,20 @@ const Registry = () => {
     return sortOrder === "desc" ? dateB - dateA : dateA - dateB;
   });
 
-  const totalPages = Math.ceil(sortedEntities.length / recordsPerPage);
-  const startIndex = (currentPage - 1) * recordsPerPage;
-  const paginatedEntities = sortedEntities.slice(startIndex, startIndex + recordsPerPage);
+  const totalPages = Math.ceil(totalCount / recordsPerPage);
+  const paginatedEntities = sortedEntities;
+
+  const getPageNumbers = (current: number, total: number): (number | "ellipsis")[] => {
+    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+    const pages: (number | "ellipsis")[] = [1];
+    const rangeStart = Math.max(2, current - 2);
+    const rangeEnd = Math.min(total - 1, current + 2);
+    if (rangeStart > 2) pages.push("ellipsis");
+    for (let i = rangeStart; i <= rangeEnd; i++) pages.push(i);
+    if (rangeEnd < total - 1) pages.push("ellipsis");
+    pages.push(total);
+    return pages;
+  };
 
   const toggleSort = (field: "created" | "updated") => {
     if (sortField === field) {
@@ -269,7 +284,7 @@ const Registry = () => {
               Syncing with Registry...
             </p>
           </div>
-        ) : filteredEntities.length === 0 ? (
+        ) : entities.length === 0 ? (
           <div className="rounded-2xl border-2 border-dashed border-primary/20 bg-gradient-to-br from-muted/30 via-muted/10 to-transparent overflow-hidden">
             <div className="flex flex-col items-center justify-center py-12 px-6">
               <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-4 ring-4 ring-primary/5">
@@ -385,7 +400,7 @@ const Registry = () => {
           </div>
         )}
 
-        {filteredEntities.length > 0 && totalPages > 1 && (
+        {totalPages > 1 && (
           <div className="flex justify-center mt-8">
             <Pagination>
               <PaginationContent className="gap-2">
@@ -399,22 +414,28 @@ const Registry = () => {
                   />
                 </PaginationItem>
 
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                  <PaginationItem key={page}>
-                    <PaginationLink
-                      onClick={() => setCurrentPage(page)}
-                      isActive={currentPage === page}
-                      className={cn(
-                        "cursor-pointer rounded-lg border-2 transition-all",
-                        currentPage === page
-                          ? "bg-primary text-primary-foreground border-primary hover:bg-primary/90"
-                          : "border-border hover:bg-primary/10 hover:border-primary hover:text-primary"
-                      )}
-                    >
-                      {page}
-                    </PaginationLink>
-                  </PaginationItem>
-                ))}
+                {getPageNumbers(currentPage, totalPages).map((page, i) =>
+                  page === "ellipsis" ? (
+                    <PaginationItem key={`ellipsis-${i}`}>
+                      <PaginationEllipsis />
+                    </PaginationItem>
+                  ) : (
+                    <PaginationItem key={page}>
+                      <PaginationLink
+                        onClick={() => setCurrentPage(page)}
+                        isActive={currentPage === page}
+                        className={cn(
+                          "cursor-pointer rounded-lg border-2 transition-all",
+                          currentPage === page
+                            ? "bg-primary text-primary-foreground border-primary hover:bg-primary/90"
+                            : "border-border hover:bg-primary/10 hover:border-primary hover:text-primary"
+                        )}
+                      >
+                        {page}
+                      </PaginationLink>
+                    </PaginationItem>
+                  )
+                )}
 
                 <PaginationItem>
                   <PaginationNext
