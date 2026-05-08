@@ -110,10 +110,6 @@ export const inviteEmployee = async (employeeData: {
     statusName?: string;
     salary?: string;
 }): Promise<{ isDuplicate?: boolean; result?: any }> => {
-    const payload = {
-        Employee: employeeData
-    };
-
     const response = await fetch(`${getBaseUrl()}/registry/api/v1/Employee/invite`, {
         method: "POST",
         headers: {
@@ -122,7 +118,7 @@ export const inviteEmployee = async (employeeData: {
         },
         credentials: "omit",
         cache: "no-store",
-        body: JSON.stringify(payload),
+        body: JSON.stringify(employeeData),
     });
 
     const data = await response.json();
@@ -167,7 +163,7 @@ export const addEmployee = async (employeeData: {
             "Accept": "application/json",
         },
         credentials: "include",
-        body: JSON.stringify(payload),
+        body: JSON.stringify(employeeData),
     });
 
     if (!response.ok) {
@@ -453,11 +449,6 @@ export const updateEmployee = async (employeeId: string, employeeData: Partial<{
     statusName?: string;
     salary?: string;
 }>) => {
-    // Wrap the flat data in Employee object as per the API format
-    const payload = {
-        Employee: employeeData
-    };
-
     const response = await fetch(`${getBaseUrl()}/registry/api/v1/Employee/${employeeId}`, {
         method: "PUT",
         headers: {
@@ -465,7 +456,7 @@ export const updateEmployee = async (employeeId: string, employeeData: Partial<{
             "Accept": "application/json",
         },
         credentials: "include",
-        body: JSON.stringify(payload),
+        body: JSON.stringify(employeeData),
     });
 
     if (!response.ok) {
