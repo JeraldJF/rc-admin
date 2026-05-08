@@ -12,7 +12,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { addEmployee, issueEmployeeCertificate } from "@/lib/employeeApi";
+import { createEmployee, issueEmployeeCertificate } from "@/lib/employeeApi";
 
 const FormField = ({ children }: { children: React.ReactNode }) => (
   <div className="space-y-2.5">{children}</div>
@@ -66,10 +66,12 @@ const AddEntity = () => {
       setIsSaving(true);
       setSavingStep("saving");
       try {
-        // Add Employee (flat schema)
-        const result = await addEmployee({
+        // createEmployee tries admin POST /Employee first; on 401/403 (e.g. JWT
+        // carries role=employee in SSO flow) falls back to anonymous /Employee/invite.
+        // Works regardless of which path the registry's RBAC currently permits.
+        const { isDuplicate, result } = await createEmployee({
           fullName: formData.fullName,
-          email: formData.email || `${formData.personalIdentification || Date.now()}@rc.local`,
+          ...(formData.email && { email: formData.email }),
           ...(formData.personalIdentification && { personalIdentification: formData.personalIdentification }),
           ...(formData.typeIdentification && { typeIdentification: formData.typeIdentification }),
           mobile: formData.mobile || "",
@@ -81,6 +83,17 @@ const AddEntity = () => {
           ...(formData.salary && { salary: formData.salary }),
         });
 
+        if (isDuplicate) {
+          toast({
+            title: "Employee already exists",
+            description: "An employee with this email or personal ID is already registered.",
+            variant: "destructive",
+          });
+          setIsSaving(false);
+          setSavingStep(null);
+          return;
+        }
+
         // Extract osid from the registry response
         const osid =
           result?.result?.Employee?.osid ||
@@ -90,7 +103,17 @@ const AddEntity = () => {
         if (osid) {
           setSavingStep("issuing");
           try {
-            await issueEmployeeCertificate(osid);
+            const empData = {
+              fullName: formData.fullName,
+              email: formData.email,
+              personalIdentification: formData.personalIdentification,
+              typeIdentification: formData.typeIdentification,
+              positionName: formData.positionName,
+              departmentName: formData.departmentName,
+              companyName: formData.companyName,
+              admissionDate: formData.dob,
+            };
+            await issueEmployeeCertificate(osid, empData);
           } catch (certError) {
             // Certificate issuance failed — employee record was still created.
             // Log but don't block navigation; admin can retry from the registry.

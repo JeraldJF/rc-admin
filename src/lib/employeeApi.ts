@@ -14,7 +14,10 @@ const handleUnauthorized = async () => {
 // Employee API Functions
 
 // Search all Employees (Admin)
-export const searchAllEmployees = async () => {
+export const searchAllEmployees = async (limit: number, offset: number, nameFilter?: string) => {
+    const filters: Record<string, unknown> = {};
+    if (nameFilter) filters.fullName = { contains: nameFilter };
+
     const response = await fetch(`${getBaseUrl()}/registry/api/v1/Employee/search`, {
         method: "POST",
         headers: {
@@ -22,7 +25,7 @@ export const searchAllEmployees = async () => {
             "Accept": "application/json",
         },
         credentials: "include",
-        body: JSON.stringify({ filters: {}, limit: 1000, offset: 0 }),
+        body: JSON.stringify({ filters, limit, offset }),
     });
 
     if (!response.ok) {
@@ -94,10 +97,18 @@ export const getEmployeeById = async (osid: string) => {
 // Returns { isDuplicate: true } when the record already exists (duplicate email).
 export const inviteEmployee = async (employeeData: {
     fullName: string;
-    email: string;
+    email?: string;
     personalIdentification?: string;
+    typeIdentification?: string;
     mobile?: string;
     role?: 'admin' | 'employee';
+    positionName?: string;
+    departmentName?: string;
+    companyName?: string;
+    admissionDate?: string;
+    contractExpiration?: string;
+    statusName?: string;
+    salary?: string;
 }): Promise<{ isDuplicate?: boolean; result?: any }> => {
     const payload = {
         Employee: employeeData
@@ -128,9 +139,10 @@ export const inviteEmployee = async (employeeData: {
 };
 
 // Add Employee (Admin) - using flat schema format
+// noLogoutOn401: skip handleUnauthorized() so callers can attempt fallback paths.
 export const addEmployee = async (employeeData: {
     fullName: string;
-    email: string;
+    email?: string;
     personalIdentification?: string;
     typeIdentification?: string;
     mobile?: string;
@@ -142,7 +154,7 @@ export const addEmployee = async (employeeData: {
     contractExpiration?: string;
     statusName?: string;
     salary?: string;
-}) => {
+}, opts?: { noLogoutOn401?: boolean }) => {
     // Wrap the flat data in Employee object as per the API format
     const payload = {
         Employee: employeeData
@@ -159,11 +171,53 @@ export const addEmployee = async (employeeData: {
     });
 
     if (!response.ok) {
-        if (response.status === 401) handleUnauthorized();
-        throw new Error("Failed to add employee");
+        if (response.status === 401 && !opts?.noLogoutOn401) handleUnauthorized();
+        const err: any = new Error("Failed to add employee");
+        err.status = response.status;
+        throw err;
     }
 
     return await response.json();
+};
+
+// Create Employee — tries admin endpoint first, falls back to anonymous /invite.
+// Works whether registry permits POST /Employee for the current JWT role or not,
+// and whether inviteRoles is "anonymous" or restricted to "admin".
+export type EmployeePayload = {
+    fullName: string;
+    email?: string;
+    personalIdentification?: string;
+    typeIdentification?: string;
+    mobile?: string;
+    role?: 'admin' | 'employee';
+    positionName?: string;
+    departmentName?: string;
+    companyName?: string;
+    admissionDate?: string;
+    contractExpiration?: string;
+    statusName?: string;
+    salary?: string;
+};
+
+export const createEmployee = async (
+    employeeData: EmployeePayload
+): Promise<{ isDuplicate?: boolean; result?: any }> => {
+    // Path A — admin endpoint. Requires admin role in JWT.
+    try {
+        const result = await addEmployee(employeeData, { noLogoutOn401: true });
+        return { result };
+    } catch (e: any) {
+        const status = e?.status;
+        // Only fall back on auth/role failures; other errors propagate.
+        if (status !== 401 && status !== 403) throw e;
+    }
+
+    // Path B — anonymous invite endpoint. Works when inviteRoles includes "anonymous".
+    try {
+        return await inviteEmployee(employeeData);
+    } catch (e: any) {
+        throw new Error(`Create employee failed via both admin and invite paths: ${e?.message || e}`);
+    }
 };
 
 // Credential service config — sourced from runtime config
@@ -274,9 +328,14 @@ export const checkCertificateIssued = async (osid: string): Promise<{ issued: bo
 };
 
 // Issue a certificate for an employee — admin action only
-export const issueEmployeeCertificate = async (osid: string): Promise<string> => {
-    const empRes = await getEmployeeById(osid);
-    const empData = empRes?.Employee || empRes;
+// Pass providedEmpData to skip the GET /Employee/{osid} fetch (which 401s for
+// anonymously-invited records without osOwner under an employee-role JWT).
+export const issueEmployeeCertificate = async (osid: string, providedEmpData?: any): Promise<string> => {
+    let empData: any = providedEmpData;
+    if (!empData) {
+        const empRes = await getEmployeeById(osid);
+        empData = empRes?.Employee || empRes;
+    }
     if (!empData) throw new Error("Failed to fetch employee data for credential issuance");
 
     // Map schema fields to credential fields
