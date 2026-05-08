@@ -151,11 +151,6 @@ export const addEmployee = async (employeeData: {
     statusName?: string;
     salary?: string;
 }, opts?: { noLogoutOn401?: boolean }) => {
-    // Wrap the flat data in Employee object as per the API format
-    const payload = {
-        Employee: employeeData
-    };
-
     const response = await fetch(`${getBaseUrl()}/registry/api/v1/Employee`, {
         method: "POST",
         headers: {
