@@ -7,7 +7,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { User, Loader2, AlertCircle, Download, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { searchAdminByEmail, getAdminById } from "@/lib/api";
 import { searchEmployeeByEmail, searchEmployeeByPersonalId, fetchCertificatePdf, checkCertificateIssued } from "@/lib/employeeApi";
 import { Badge } from "@/components/ui/badge";
 
@@ -59,28 +58,8 @@ const ViewProfile = () => {
   }, []);
 
   const fetchAdminProfile = async (email: string) => {
-    setIsLoading(true);
-    try {
-      const searchResults = await searchAdminByEmail(email);
-
-      // Handle search response - could be array or object with data property
-      const adminsArray = Array.isArray(searchResults) ? searchResults : (searchResults.data || []);
-
-      if (adminsArray && adminsArray.length > 0) {
-        const adminSummary = adminsArray[0];
-        const osid = adminSummary.osid;
-
-        await getAdminById(osid);
-      }
-    } catch (error) {
-      toast({
-        title: "❌ Failed to load profile",
-        description: error instanceof Error ? error.message : "Could not fetch admin profile",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    // Admins are also employees in the registry — reuse the same lookup logic
+    await fetchEmployeeProfile(email);
   };
 
   const fetchEmployeeProfile = async (email: string) => {
@@ -233,8 +212,6 @@ const ViewProfile = () => {
     }
   };
 
-  const isEmployee = userRole === "employee";
-
   return (
     <DashboardLayout>
       <div className="space-y-6 max-w-5xl mx-auto">
@@ -254,7 +231,7 @@ const ViewProfile = () => {
                 <AlertCircle className="h-12 w-12 text-amber-500" />
                 <h2 className="text-xl font-bold text-foreground">Profile Not Found</h2>
                 <p className="text-muted-foreground max-w-sm">
-                  No registry record was found for <span className="font-semibold text-foreground">{sessionStorage.getItem("userEmail")}</span>.
+                  No registry record was found for <span className="font-semibold text-foreground">{sessionStorage.getItem("userPersonalId")}</span>.
                   Please contact your administrator to set up your account.
                 </p>
               </div>
@@ -262,8 +239,8 @@ const ViewProfile = () => {
           </Card>
         ) : (
           <>
-            {/* Employee View Mode */}
-            {userRole === "employee" ? (
+            {/* Profile View — same card for employee and admin */}
+            {(userRole === "employee" || userRole === "admin") && (
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <Card className="bg-card shadow-2xl border-2 border-border/60 rounded-3xl overflow-hidden backdrop-blur-sm">
                   <div className="h-32 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 relative">
@@ -395,18 +372,10 @@ const ViewProfile = () => {
                   </CardContent>
                 </Card>
               </div>
-            ) : (
-              /* Admin profile - read-only */
-              <Card className="bg-card shadow-xl border-2 border-border rounded-2xl overflow-hidden">
-                <CardContent className="pt-8 px-8 pb-8">
-                  <div className="text-center py-8 text-muted-foreground">
-                    <p>Admin profile information</p>
-                  </div>
-                </CardContent>
-              </Card>
             )}
           </>
         )}
+
       </div>
     </DashboardLayout>
   );

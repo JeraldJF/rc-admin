@@ -7,6 +7,7 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 import Login from "./pages/Login";
 import Registry from "./pages/Registry";
 import AddEntity from "./pages/AddEntity";
+import EditEntity from "./pages/EditEntity";
 import ViewProfile from "./pages/ViewProfile";
 import NotFound from "./pages/NotFound";
 import Callback from "./pages/Callback";
@@ -73,6 +74,7 @@ const App = () => {
               <Route path="/login" element={<Login />} />
               <Route path="/registry" element={<ProtectedRoute><Registry /></ProtectedRoute>} />
               <Route path="/entity/new" element={<ProtectedRoute><AddEntity /></ProtectedRoute>} />
+              <Route path="/entity/:id/edit" element={<ProtectedRoute><EditEntity /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><ViewProfile /></ProtectedRoute>} />
               <Route path="/callback" element={<Callback />} />
               <Route path="/consent" element={<Consent />} />
