@@ -4,7 +4,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, SearchX, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Database } from "lucide-react";
+import { Plus, Search, SearchX, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Database, Pencil, Trash2 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Pagination,
@@ -28,10 +28,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { searchAllEmployees } from "@/lib/employeeApi";
+import { searchAllEmployees, deleteEmployee } from "@/lib/employeeApi";
 
 type SortOrder = "asc" | "desc" | null;
 type SortField = "created" | "updated" | null;
+
 
 interface EntityData {
   id: string;
@@ -53,6 +54,7 @@ const Registry = () => {
   const [entities, setEntities] = useState<EntityData[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteName, setDeleteName] = useState<string>("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -225,11 +227,10 @@ const Registry = () => {
   };
 
   const handleDelete = async () => {
-    if (deleteId) {
-      setIsDeleting(true);
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
+    if (!deleteId) return;
+    setIsDeleting(true);
+    try {
+      await deleteEmployee(deleteId);
       setEntities(entities.filter((entity) => entity.id !== deleteId));
       toast({
         title: t("toast.entity_deleted"),
@@ -237,7 +238,15 @@ const Registry = () => {
         variant: "success",
       });
       setDeleteId(null);
+      setDeleteName("");
       setCurrentPage(1);
+    } catch (error) {
+      toast({
+        title: "❌ Failed to delete employee",
+        description: error instanceof Error ? error.message : "Could not delete employee",
+        variant: "destructive",
+      });
+    } finally {
       setIsDeleting(false);
     }
   };
@@ -310,6 +319,7 @@ const Registry = () => {
             </div>
           </div>
         ) : (
+          <>
           <div className="rounded-xl border border-border bg-card overflow-x-auto shadow-lg">
             <Table className="relative w-full min-w-0">
               <TableHeader className="sticky top-0 z-10">
@@ -333,6 +343,7 @@ const Registry = () => {
                       {getSortIcon("updated")}
                     </button>
                   </TableHead>
+                  <TableHead className="uppercase text-[11px] tracking-wider font-semibold text-muted-foreground text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -393,11 +404,32 @@ const Registry = () => {
                         </Tooltip>
                       </TooltipProvider>
                     </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => navigate(`/entity/${entity.id}/edit`)}
+                          className="h-8 w-8 p-0 hover:bg-primary/10 hover:text-primary"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => { setDeleteId(entity.id); setDeleteName(entity.name); }}
+                          className="h-8 w-8 p-0 hover:bg-destructive/10 hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           </div>
+          </>
         )}
 
         {totalPages > 1 && (
@@ -452,12 +484,12 @@ const Registry = () => {
         )}
       </div>
 
-      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => { if (!open) { setDeleteId(null); setDeleteName(""); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t("confirm.are_you_sure")}</AlertDialogTitle>
             <AlertDialogDescription>
-              {t("confirm.delete_warning")}
+              This will permanently delete the record for <span className="font-semibold text-foreground">{deleteName}</span>. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -1,17 +1,10 @@
-import { Sun, Moon, User, Search, Loader2 } from "lucide-react";
+import { Sun, Moon, Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Input } from "@/components/ui/input";
 import { useNavigate, useLocation } from "react-router-dom";
-import { cn } from "@/lib/utils";
 import { useLanguage } from "@/contexts/LanguageContext";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 interface TopBarProps {
   title?: string;
@@ -19,7 +12,6 @@ interface TopBarProps {
 
 export const TopBar = ({ title }: TopBarProps) => {
   const [theme, setTheme] = useState<"light" | "dark">("light");
-  const [username, setUsername] = useState("admin");
   const [userRole, setUserRole] = useState("admin");
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
@@ -32,15 +24,6 @@ export const TopBar = ({ title }: TopBarProps) => {
                         location.pathname.startsWith("/profile") ||
                         (location.pathname.match(/^\/entity\/[^/]+$/) && !location.pathname.endsWith("/edit")) ||
                         location.pathname.match(/^\/entity\/[^/]+\/edit$/));
-
-  const isProfilePage = location.pathname === "/profile";
-
-  // Get role display name
-  const getRoleDisplay = (role: string) => {
-    if (role === "admin") return "Administrator";
-    if (role === "employee") return "Employee";
-    return "User";
-  };
 
   // Get search placeholder based on role
   const getSearchPlaceholder = (role: string) => {
@@ -59,12 +42,6 @@ export const TopBar = ({ title }: TopBarProps) => {
       } else {
         document.documentElement.classList.remove("dark");
       }
-    }
-    
-    const userEmail = sessionStorage.getItem("userEmail");
-    if (userEmail) {
-      const emailUsername = userEmail.split("@")[0];
-      setUsername(emailUsername);
     }
 
     const role = sessionStorage.getItem("userRole") || "admin";
@@ -152,36 +129,6 @@ export const TopBar = ({ title }: TopBarProps) => {
             </SelectItem>
           </SelectContent>
         </Select>
-        <div className="flex items-center gap-3 pl-4 border-l">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild disabled={userRole === "admin"}>
-              <button
-                className={cn(
-                  "flex items-center gap-3 transition-colors focus:outline-none",
-                  userRole === "admin" ? "opacity-50 cursor-not-allowed" : "hover:text-primary"
-                )}
-                disabled={userRole === "admin"}
-              >
-                <div className={cn(
-                  "h-8 w-8 rounded-full bg-primary flex items-center justify-center",
-                  isProfilePage && "ring-2 ring-primary ring-offset-2 ring-offset-background"
-                )}>
-                  <User className="h-4 w-4 text-primary-foreground" />
-                </div>
-                <div className="text-left">
-                  <p className="text-sm font-medium text-foreground">{username}</p>
-                  <p className="text-xs text-muted-foreground">{getRoleDisplay(userRole)}</p>
-                </div>
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={() => navigate("/profile")} className="cursor-pointer">
-                <User className="mr-2 h-4 w-4" />
-                <span>{t("profile.view_profile")}</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
       </div>
     </header>
   );

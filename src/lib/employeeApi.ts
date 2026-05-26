@@ -426,6 +426,21 @@ export const fetchCertificatePdf = async (credentialId: string): Promise<Blob> =
     return await response.blob();
 };
 
+// Delete Employee (Admin)
+export const deleteEmployee = async (osid: string): Promise<void> => {
+    const response = await fetch(`${getBaseUrl()}/registry/api/v1/Employee/${osid}`, {
+        method: "DELETE",
+        headers: { "Accept": "application/json" },
+        credentials: "include",
+    });
+
+    if (!response.ok) {
+        const err: any = new Error("Failed to delete employee");
+        err.status = response.status;
+        throw err;
+    }
+};
+
 // Update Employee (Admin) - using flat schema format
 export const updateEmployee = async (employeeId: string, employeeData: Partial<{
     fullName?: string;
