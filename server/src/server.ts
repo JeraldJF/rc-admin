@@ -461,8 +461,28 @@ app.post('/auth/ext-token', express.urlencoded({ extended: false }), express.jso
     req.session.userName = userName;
     req.session.userPersonalId = sub;  // cedula from OIDC sub — used for registry lookup
 
+    // Look up actual role from registry by cédula so the JWT gets the correct role at consent time.
+    // Anonymous registry search is used here — no Hydra token exists yet at this stage.
+    let userRegistryRole = 'employee';
+    if (sub) {
+      try {
+        const registryBase = (process.env.API_BASE_URL || 'http://localhost:8081').replace(/\/$/, '');
+        const searchRes = await fetch(`${registryBase}/api/v1/Employee/search`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify({ filters: { personalIdentification: { eq: sub } } }),
+        });
+        if (searchRes.ok) {
+          const data = await searchRes.json();
+          const records: any[] = [data, data?.Employee, data?.data].find(Array.isArray) ?? [];
+          const match = records.map((r: any) => r?.Employee ?? r).find((e: any) => e?.personalIdentification === sub);
+          if (match?.role) userRegistryRole = String(match.role).toLowerCase();
+        }
+      } catch { /* default to employee on any lookup error */ }
+    }
+
     // Return only identity claims — the ext access_token never leaves the server
-    res.json({ email: userEmail, name: userName, sub });
+    res.json({ email: userEmail, name: userName, sub, role: userRegistryRole });
   } catch (err) {
     console.error('[/auth/ext-token] request failed:', err);
     res.status(502).json({ error: 'Failed to reach external OIDC token endpoint' });

@@ -40,9 +40,9 @@ export default function Callback() {
             throw new Error(`External token exchange failed: ${await tokenResponse.text()}`);
           }
 
-          const { email: userEmail, name: userName, sub } = await tokenResponse.json();
+          const { email: userEmail, name: userName, sub, role: registryRole } = await tokenResponse.json();
 
-          const userRole = 'employee';
+          const userRole = (registryRole || 'employee').toLowerCase();
           const loginChallenge = sessionStorage.getItem('login_challenge');
           if (!loginChallenge) {
             throw new Error('Login challenge not found. Please restart the login flow.');

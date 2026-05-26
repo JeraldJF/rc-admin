@@ -45,11 +45,10 @@ export default function Consent() {
                     remember_for: 3600,
                     session: {
                         access_token: {
-                            // ownershipAttributes maps JWT.email → record.personalIdentification for ABAC;
-                            // cédula must match so employees can read their own records
-                            email: personalId || userEmail,
-                            personalIdentification: personalId,
-                            role: [userRole],  // array required — registry reads role via JsonPath as ArrayList
+                            ext: {
+                                role: [userRole],  // array required — registry reads role via JsonPath as ArrayList
+                                personalIdentification: personalId,
+                            },
                         },
                         id_token: {
                             email: userEmail,
