@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { User, Loader2, AlertCircle, Download, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { searchEmployeeByEmail, searchEmployeeByPersonalId, fetchCertificatePdf, checkCertificateIssued } from "@/lib/employeeApi";
+import { searchEmployeeByEmail, searchEmployeeByPersonalId, downloadEmployeeCertificate, checkCertificateIssued } from "@/lib/employeeApi";
 import { Badge } from "@/components/ui/badge";
 
 const ViewProfile = () => {
@@ -20,7 +20,6 @@ const ViewProfile = () => {
 
   const [profileNotFound, setProfileNotFound] = useState(false);
   const [certIssued, setCertIssued] = useState(false);
-  const [certId, setCertId] = useState<string | null>(null);
   const [certChecking, setCertChecking] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -120,9 +119,8 @@ const ViewProfile = () => {
         sessionStorage.setItem("employeeOsid", effectiveOsid);
 
         setCertChecking(true);
-        checkCertificateIssued(effectiveOsid).then(({ issued, credentialId }) => {
+        checkCertificateIssued(effectiveOsid).then(({ issued }) => {
           setCertIssued(issued);
-          setCertId(credentialId);
           setCertChecking(false);
         }).catch(() => setCertChecking(false));
 
@@ -193,8 +191,7 @@ const ViewProfile = () => {
 
     setDownloadingId(osid);
     try {
-      if (!certId) throw new Error("Certificate not found. Please refresh and try again.");
-      const blob = await fetchCertificatePdf(certId);
+      const blob = await downloadEmployeeCertificate(osid);
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
