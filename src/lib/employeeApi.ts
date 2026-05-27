@@ -2,9 +2,20 @@ import { getConfig } from './config';
 
 const getBaseUrl = () => getConfig().VITE_API_BASE_URL || '';
 
-// 401 from registry = RBAC denial (wrong role in JWT), not session expiry.
-// Don't auto-logout on RBAC failures — caller decides how to handle.
-// Real session expiry is detected via /auth/me (called by layout/header).
+// When the BFF detects a JWT with broken claims (no ext.role), it clears the
+// Hydra consent session and returns {error:'session_invalid'}. Redirect to login
+// so the user gets a fresh JWT with correct claims on next sign-in.
+async function checkSessionInvalid(res: Response): Promise<void> {
+  if (res.status === 401) {
+    try {
+      const body = await res.clone().json();
+      if (body?.error === 'session_invalid') {
+        sessionStorage.clear();
+        window.location.href = '/login';
+      }
+    } catch { /* not JSON or different error */ }
+  }
+}
 
 // Employee API Functions
 
@@ -84,6 +95,7 @@ export const getEmployeeById = async (osid: string) => {
     });
 
     if (!response.ok) {
+        await checkSessionInvalid(response);
         const err: any = new Error("Failed to fetch employee details");
         err.status = response.status;
         throw err;
@@ -435,6 +447,7 @@ export const deleteEmployee = async (osid: string): Promise<void> => {
     });
 
     if (!response.ok) {
+        await checkSessionInvalid(response);
         const err: any = new Error("Failed to delete employee");
         err.status = response.status;
         throw err;
@@ -468,6 +481,7 @@ export const updateEmployee = async (employeeId: string, employeeData: Partial<{
     });
 
     if (!response.ok) {
+        await checkSessionInvalid(response);
         const err: any = new Error("Failed to update employee");
         err.status = response.status;
         throw err;
