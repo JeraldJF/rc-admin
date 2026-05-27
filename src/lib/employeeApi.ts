@@ -431,6 +431,7 @@ export const fetchCertificatePdf = async (credentialId: string): Promise<Blob> =
     );
 
     if (!response.ok) {
+        await checkSessionInvalid(response);
         const err = await response.text();
         throw new Error(`Failed to download certificate: ${response.status} ${err}`);
     }
