@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { User, Loader2, AlertCircle, Download, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { searchEmployeeByEmail, searchEmployeeByPersonalId, downloadEmployeeCertificate, checkCertificateIssued } from "@/lib/employeeApi";
+import { searchEmployeeByEmail, searchEmployeeByPersonalId, downloadEmployeeCertificate, checkCertificateIssued, issueAndDownloadCertificate } from "@/lib/employeeApi";
 import { Badge } from "@/components/ui/badge";
 
 const ViewProfile = () => {
@@ -209,6 +209,53 @@ const ViewProfile = () => {
     }
   };
 
+  const handleAdminCertificateDownload = async () => {
+    const osid = sessionStorage.getItem("employeeOsid") || "";
+    if (!osid) {
+      toast({ title: "❌ Error", description: "Employee record not found", variant: "destructive" });
+      return;
+    }
+
+    setDownloadingId(osid);
+    try {
+      const empData = {
+        fullName: formData.fullName,
+        email: formData.email,
+        personalIdentification: formData.personalIdentification,
+        typeIdentification: formData.typeIdentification,
+        positionName: formData.positionName,
+        departmentName: formData.departmentName,
+        companyName: formData.companyName,
+        admissionDate: formData.dob,
+        contractExpiration: formData.exitDate,
+        statusName: formData.statusName,
+      };
+
+      const { blob, wasIssued } = await issueAndDownloadCertificate(osid, empData);
+
+      if (wasIssued) setCertIssued(true);
+
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      const safeName = (formData.fullName || "employee").replace(/\s+/g, "_");
+      link.download = `${safeName}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast({
+        title: "✅ Certificate downloaded",
+        description: wasIssued ? "Certificate issued and downloaded successfully." : "Certificate downloaded successfully.",
+        variant: "success",
+      });
+    } catch (error) {
+      toast({ title: "❌ Download failed", description: error instanceof Error ? error.message : "Could not download certificate", variant: "destructive" });
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6 max-w-5xl mx-auto">
@@ -278,7 +325,7 @@ const ViewProfile = () => {
                               type="button"
                               variant="outline"
                               className="gap-2 rounded-xl h-11 px-5"
-                              onClick={handleDownloadEmployeeCertificate}
+                              onClick={userRole === "admin" ? handleAdminCertificateDownload : handleDownloadEmployeeCertificate}
                               disabled={downloadingId !== null}
                             >
                               {downloadingId ? (
@@ -299,7 +346,7 @@ const ViewProfile = () => {
                             type="button"
                             variant="outline"
                             className="gap-2 rounded-xl h-11 px-5"
-                            onClick={handleDownloadEmployeeCertificate}
+                            onClick={userRole === "admin" ? handleAdminCertificateDownload : handleDownloadEmployeeCertificate}
                             disabled={downloadingId !== null}
                           >
                             {downloadingId ? (

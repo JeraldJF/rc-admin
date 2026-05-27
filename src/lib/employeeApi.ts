@@ -416,6 +416,24 @@ export const downloadEmployeeCertificate = async (osid: string): Promise<Blob> =
     return fetchCertificatePdf(credentialId);
 };
 
+// Issue certificate (if not yet issued) and download as PDF — explicit admin flow.
+// Returns { blob, wasIssued } so caller can update UI state.
+export const issueAndDownloadCertificate = async (
+    osid: string,
+    empData?: any
+): Promise<{ blob: Blob; wasIssued: boolean }> => {
+    let { issued, credentialId } = await checkCertificateIssued(osid);
+
+    let wasIssued = false;
+    if (!issued || !credentialId) {
+        credentialId = await issueEmployeeCertificate(osid, empData);
+        wasIssued = true;
+    }
+
+    const blob = await fetchCertificatePdf(credentialId);
+    return { blob, wasIssued };
+};
+
 // Fetch an already-issued certificate as PDF by credential ID (no issuance)
 export const fetchCertificatePdf = async (credentialId: string): Promise<Blob> => {
     const response = await fetch(
