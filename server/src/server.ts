@@ -883,7 +883,10 @@ const credentialProxy = createProxyMiddleware({
   target: process.env.CREDENTIAL_SERVICE_URL || 'http://localhost:3005',
   changeOrigin: true,
 });
-app.use('/credential', injectSessionToken, retryOn401(credentialProxy));
+app.use('/credential', async (req: Request, res: Response, next: NextFunction) => {
+  if (await fixBrokenJwt(req, res)) return;
+  next();
+}, injectSessionToken, retryOn401(credentialProxy));
 
 // ---------------------------------------------------------------------------
 // Static frontend
