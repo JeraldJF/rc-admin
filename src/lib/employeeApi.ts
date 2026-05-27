@@ -304,6 +304,7 @@ export const checkCertificateIssued = async (osid: string): Promise<{ issued: bo
         );
         
         if (!response.ok) {
+            await checkSessionInvalid(response);
             return { issued: false, credentialId: null };
         }
         
@@ -394,6 +395,7 @@ export const issueEmployeeCertificate = async (osid: string, providedEmpData?: a
     });
 
     if (!response.ok) {
+        await checkSessionInvalid(response);
         const err = await response.text();
         throw new Error(`Failed to issue credential: ${err}`);
     }
