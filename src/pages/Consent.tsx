@@ -41,8 +41,8 @@ export default function Consent() {
                     consent_challenge: consentChallenge,
                     grant_scope: ['openid', 'offline_access', 'email', 'profile'],
                     grant_access_token_audience: [],
-                    remember: true,
-                    remember_for: 3600,
+                    remember: false,
+                    remember_for: 0,
                     session: {
                         access_token: {
                             ext: {

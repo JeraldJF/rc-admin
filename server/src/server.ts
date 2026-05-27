@@ -834,12 +834,38 @@ const stripCookieForInvite: RequestHandler = (req: Request, res: Response, next:
   next();
 };
 
+// Detect a JWT issued before the ext.role fix (role missing from ext claims).
+// Clears the Hydra consent session so the next login gets fresh claims, then
+// destroys the Express session and returns session_invalid so the client redirects to login.
+async function fixBrokenJwt(req: Request, res: Response): Promise<boolean> {
+  if (!req.session.accessToken) return false;
+  try {
+    const payload = JSON.parse(Buffer.from(req.session.accessToken.split('.')[1], 'base64').toString('utf8'));
+    if (payload?.ext?.role) return false; // claims are fine
+  } catch { return false; }
+
+  const email = req.session.userEmail || '';
+  console.warn(`[fixBrokenJwt] JWT missing ext.role for ${email} — clearing Hydra consent and session`);
+  try {
+    await fetch(
+      `${hydraAdminUrl()}/admin/oauth2/auth/sessions/consent?subject=${encodeURIComponent(email)}`,
+      { method: 'DELETE' }
+    );
+  } catch (e) {
+    console.warn('[fixBrokenJwt] Could not clear Hydra consent:', e);
+  }
+  req.session.destroy(() => {});
+  res.status(401).json({ error: 'session_invalid' });
+  return true;
+}
+
 // Conditionally apply injectSessionToken — skip for /invite endpoints
-app.use('/registry/api', stripCookieForInvite, (req: Request, res: Response, next: NextFunction) => {
+app.use('/registry/api', stripCookieForInvite, async (req: Request, res: Response, next: NextFunction) => {
   if (req.path.includes('/invite')) {
     delete req.headers['cookie'];
     return registryProxy(req, res, next);
   }
+  if (await fixBrokenJwt(req, res)) return;
   injectSessionToken(req, res, next);
 }, retryOn401(registryProxy));
 
