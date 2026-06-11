@@ -74,6 +74,8 @@ const translations = {
     'table.claim_id': 'Claim ID',
     'table.status': 'Status',
     'table.actions': 'Actions',
+    'table.company_name': 'Company Name',
+    'table.admission_date': 'Admission Date',
     
     // Messages
     'msg.no_claims': 'No claims found. Click "Request For Claim" to submit a new request.',
@@ -337,6 +339,8 @@ const translations = {
     'table.claim_id': 'ID del reclamo',
     'table.status': 'Estado',
     'table.actions': 'Acciones',
+    'table.company_name': 'Nombre de la empresa',
+    'table.admission_date': 'Fecha de admisión',
     
     // Messages
     'msg.no_claims': 'No se encontraron reclamos. Haz clic en "Solicitar Reclamo" para enviar una nueva solicitud.',

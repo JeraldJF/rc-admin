@@ -7,6 +7,7 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 import Login from "./pages/Login";
 import Registry from "./pages/Registry";
 import AddEntity from "./pages/AddEntity";
+import EmployeeDetail from "./pages/EmployeeDetail";
 import ViewProfile from "./pages/ViewProfile";
 import NotFound from "./pages/NotFound";
 import Callback from "./pages/Callback";
@@ -58,7 +59,7 @@ const App = () => {
     const isLoggedIn = sessionStorage.getItem("isLoggedIn") === "true";
     if (!isLoggedIn) return <Navigate to="/login" replace />;
     const role = sessionStorage.getItem("userRole") || "admin";
-    return <Navigate to={role === "employee" ? "/profile" : "/registry"} replace />;
+    return <Navigate to={role === "employee" ? "/profile" : "/employees"} replace />;
   };
 
   return (
@@ -71,8 +72,9 @@ const App = () => {
             <Routes>
               <Route path="/" element={<RootRedirect />} />
               <Route path="/login" element={<Login />} />
-              <Route path="/registry" element={<ProtectedRoute><Registry /></ProtectedRoute>} />
+              <Route path="/employees" element={<ProtectedRoute><Registry /></ProtectedRoute>} />
               <Route path="/entity/new" element={<ProtectedRoute><AddEntity /></ProtectedRoute>} />
+              <Route path="/employee/:osid" element={<ProtectedRoute><EmployeeDetail /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><ViewProfile /></ProtectedRoute>} />
               <Route path="/callback" element={<Callback />} />
               <Route path="/consent" element={<Consent />} />

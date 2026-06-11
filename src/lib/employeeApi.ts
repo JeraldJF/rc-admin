@@ -73,6 +73,29 @@ export const searchEmployeeByEmail = async (email: string) => {
 
 
 
+// Find a single Employee by osid via the SEARCH endpoint (admin-accessible),
+// avoiding GET /Employee/{osid} which 401s under the registry's owner-level ABAC.
+// Pages through search results client-side until the osid is found or exhausted.
+export const findEmployeeByOsid = async (osid: string): Promise<any | null> => {
+    const pageSize = 100;
+    const maxPages = 50; // safety cap (~5000 records)
+    const extract = (data: any): any[] => {
+        if (Array.isArray(data)) return data;
+        const inner = data?.data || data?.Employee || data?.result || data?.content;
+        return Array.isArray(inner) ? inner : [];
+    };
+    for (let page = 0; page < maxPages; page++) {
+        const data = await searchAllEmployees(pageSize, page * pageSize);
+        const records = extract(data);
+        for (const raw of records) {
+            const emp = raw?.Employee || raw;
+            if ((emp.osid || emp.id) === osid) return emp;
+        }
+        if (records.length < pageSize) break;
+    }
+    return null;
+};
+
 // Get Employee by ID
 export const getEmployeeById = async (osid: string) => {
     const response = await fetch(`${getBaseUrl()}/registry/api/v1/Employee/${osid}`, {

@@ -5,18 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Search, SearchX, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Database } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Pagination,
   PaginationContent,
-  PaginationEllipsis,
   PaginationItem,
   PaginationLink,
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { cn } from "@/lib/utils";
+import { cn, parseLocalDate } from "@/lib/utils";
+import { format } from "date-fns";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,7 +30,7 @@ import { useToast } from "@/hooks/use-toast";
 import { searchAllEmployees } from "@/lib/employeeApi";
 
 type SortOrder = "asc" | "desc" | null;
-type SortField = "created" | "updated" | null;
+type SortField = "admissionDate" | null;
 
 interface EntityData {
   id: string;
@@ -41,8 +40,14 @@ interface EntityData {
   mobile?: string;
   created: string;
   updated: string;
+  companyName: string;
+  admissionDate: string;
   degree?: string;
   isAttested?: boolean;
+  // Full registry record from the search response — carried to the detail page
+  // via navigation state so it never has to GET /Employee/{osid} (which 401s
+  // for admins under the registry's owner-level ABAC).
+  raw?: any;
 }
 
 const Registry = () => {
@@ -50,17 +55,16 @@ const Registry = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
-  const [entities, setEntities] = useState<EntityData[]>([]);
+  const [allEntities, setAllEntities] = useState<EntityData[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [userRole, setUserRole] = useState<string>("admin");
-  const [sortField, setSortField] = useState<SortField>("created");
+  const [sortField, setSortField] = useState<SortField>("admissionDate");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
-  const recordsPerPage = 100;
+  const recordsPerPage = 10;
 
   useEffect(() => {
     const role = sessionStorage.getItem("userRole") || "admin";
@@ -68,28 +72,26 @@ const Registry = () => {
   }, []);
 
   useEffect(() => {
-    fetchEmployees(currentPage, searchQuery);
-  }, [currentPage, searchQuery]);
-
-  useEffect(() => {
     setCurrentPage(1);
+    fetchEmployees(searchQuery);
   }, [searchQuery]);
 
-  const fetchEmployees = async (page: number, nameFilter: string) => {
+  useEffect(() => {
+    if (allEntities.length === 0) fetchEmployees(searchQuery);
+  }, []);
+
+  const fetchEmployees = async (nameFilter: string) => {
     setIsLoading(true);
-    const offset = (page - 1) * recordsPerPage;
     try {
-      const response = await searchAllEmployees(recordsPerPage, offset, nameFilter || undefined);
-    
-      // Handle the various ways Sunbird RC can return data
-      // Based on provided JSON: { "totalCount": 7, "data": [...] }
-      let employeesArray = [];
+      // Fetch all records at once — Sunbird RC returns wrapper+flat duplicates per employee,
+      // so offset-based pagination skips half the records. Deduplicate here, paginate client-side.
+      const response = await searchAllEmployees(2000, 0, nameFilter || undefined);
+
+      let employeesArray: any[] = [];
       if (Array.isArray(response)) {
         employeesArray = response;
       } else if (response && typeof response === 'object') {
-        // High priority for the 'data' property as per user JSON
         const listData = response.data || response.Employee || response.result || response.content;
-
         if (Array.isArray(listData)) {
           employeesArray = listData;
         } else if (listData && typeof listData === 'object' && Array.isArray(listData.content)) {
@@ -99,66 +101,40 @@ const Registry = () => {
         }
       }
 
-      // Transform API response to EntityData format
-      // Sunbird RC returns BOTH the actual employee record AND a wrapper record with nested Employee object
-      // We need to deduplicate by the actual employee osid
       const seenOsids = new Set<string>();
-      
       const employeeData: EntityData[] = employeesArray
         .filter((employee: any) => {
-          // Extract the actual employee data (handle both flat and nested structures)
           const actualEmployee = employee.Employee || employee;
           const actualOsid = actualEmployee.osid || actualEmployee.id;
-          
-          // Skip records without osid or id
           if (!actualOsid) return false;
-          
-          // Skip duplicate osids (Sunbird RC returns both wrapper and actual records)
           if (seenOsids.has(actualOsid)) return false;
           seenOsids.add(actualOsid);
-          
-          // Skip records that are just empty objects or have no meaningful data
-          const flatName = actualEmployee.fullName || actualEmployee.firstName || actualEmployee.lastName || actualEmployee.name;
-          const flatEmail = actualEmployee.email;
-          const nestedName = actualEmployee.identityDetails?.fullName;
-          const nestedEmail = actualEmployee.contactDetails?.email;
-          
-          // Must have either a name or email to be considered a valid employee record
-          return !!(flatName || nestedName || flatEmail || nestedEmail);
+          const name = actualEmployee.fullName || actualEmployee.firstName || actualEmployee.lastName || actualEmployee.name || actualEmployee.identityDetails?.fullName;
+          const email = actualEmployee.email || actualEmployee.contactDetails?.email;
+          return !!(name || email);
         })
         .map((employee: any) => {
-          // Extract the actual employee data (prioritize nested Employee object if it exists)
           const actualEmployee = employee.Employee || employee;
-          
-          // Flat schema fields (prioritized)
           const flatName = actualEmployee.fullName
             || (actualEmployee.firstName && actualEmployee.lastName
               ? `${actualEmployee.firstName} ${actualEmployee.lastName}`.trim()
               : actualEmployee.name);
-          const flatEmail = actualEmployee.email;
-          const flatMobile = actualEmployee.phoneNumber || actualEmployee.mobile;
-          const flatEmpNum = actualEmployee.employeeNumber || actualEmployee.personalIdentification;
-
-          // Nested schema fields (fallback)
-          const nestedName = actualEmployee.identityDetails?.fullName;
-          const nestedEmail = actualEmployee.contactDetails?.email;
-          const nestedMobile = actualEmployee.contactDetails?.mobile;
-          const nestedEmpNum = actualEmployee.identityDetails?.employeeNumber || actualEmployee.identityDetails?.personalIdentification;
-
           return {
             id: actualEmployee.osid || actualEmployee.id,
-            name: flatName || nestedName || 'N/A',
-            email: flatEmail || nestedEmail || 'N/A',
-            instituteName: (flatEmpNum || nestedEmpNum) ? `ID: ${flatEmpNum || nestedEmpNum}` : actualEmployee.instituteName || 'N/A',
-            mobile: flatMobile || nestedMobile,
-            created: actualEmployee.osCreatedAt || actualEmployee.createdAt || actualEmployee.osCreatedAt || '2024-01-01T00:00:00Z',
-            updated: actualEmployee.osUpdatedAt || actualEmployee.updatedAt || actualEmployee.osUpdatedAt || '2024-01-01T00:00:00Z',
+            name: flatName || actualEmployee.identityDetails?.fullName || 'N/A',
+            email: actualEmployee.email || actualEmployee.contactDetails?.email || 'N/A',
+            instituteName: (actualEmployee.employeeNumber || actualEmployee.personalIdentification || actualEmployee.identityDetails?.employeeNumber)
+              ? `ID: ${actualEmployee.employeeNumber || actualEmployee.personalIdentification || actualEmployee.identityDetails?.employeeNumber}`
+              : actualEmployee.instituteName || 'N/A',
+            mobile: actualEmployee.phoneNumber || actualEmployee.mobile || actualEmployee.contactDetails?.mobile,
+            created: actualEmployee.osCreatedAt || actualEmployee.createdAt || actualEmployee._created || actualEmployee.createdOn || '',
+            updated: actualEmployee.osUpdatedAt || actualEmployee.updatedAt || actualEmployee._updated || actualEmployee.updatedOn || '',
+            admissionDate: actualEmployee.admissionDate || actualEmployee.dateOfJoining || '',
+            companyName: actualEmployee.companyName || actualEmployee.organization || '',
           };
         });
-    
 
-      setTotalCount(response?.totalCount ?? employeeData.length);
-      setEntities(employeeData);
+      setAllEntities(employeeData);
     } catch (error) {
       toast({
         title: t("toast.failed_load_employees") || "Failed to load employees",
@@ -178,32 +154,18 @@ const Registry = () => {
     }
   }, [searchParams]);
 
-  // Sort current page entities
-  const sortedEntities = [...entities].sort((a, b) => {
+  const sortedEntities = [...allEntities].sort((a, b) => {
     if (!sortField || !sortOrder) return 0;
-
-    const dateA = new Date(a[sortField]).getTime();
-    const dateB = new Date(b[sortField]).getTime();
-
+    const dateA = parseLocalDate(a[sortField])?.getTime() ?? 0;
+    const dateB = parseLocalDate(b[sortField])?.getTime() ?? 0;
     return sortOrder === "desc" ? dateB - dateA : dateA - dateB;
   });
 
-  const totalPages = Math.ceil(totalCount / recordsPerPage);
-  const paginatedEntities = sortedEntities;
+  const totalPages = Math.ceil(sortedEntities.length / recordsPerPage);
+  const startIdx = (currentPage - 1) * recordsPerPage;
+  const paginatedEntities = sortedEntities.slice(startIdx, startIdx + recordsPerPage);
 
-  const getPageNumbers = (current: number, total: number): (number | "ellipsis")[] => {
-    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
-    const pages: (number | "ellipsis")[] = [1];
-    const rangeStart = Math.max(2, current - 2);
-    const rangeEnd = Math.min(total - 1, current + 2);
-    if (rangeStart > 2) pages.push("ellipsis");
-    for (let i = rangeStart; i <= rangeEnd; i++) pages.push(i);
-    if (rangeEnd < total - 1) pages.push("ellipsis");
-    pages.push(total);
-    return pages;
-  };
-
-  const toggleSort = (field: "created" | "updated") => {
+  const toggleSort = (field: "admissionDate") => {
     if (sortField === field) {
       // Cycle through: desc -> asc -> null
       if (sortOrder === "desc") setSortOrder("asc");
@@ -217,7 +179,7 @@ const Registry = () => {
     }
   };
 
-  const getSortIcon = (field: "created" | "updated") => {
+  const getSortIcon = (field: "admissionDate") => {
     if (sortField !== field) return <ArrowUpDown className="h-4 w-4" />;
     if (sortOrder === "desc") return <ArrowDown className="h-4 w-4" />;
     if (sortOrder === "asc") return <ArrowUp className="h-4 w-4" />;
@@ -230,7 +192,7 @@ const Registry = () => {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      setEntities(entities.filter((entity) => entity.id !== deleteId));
+      setAllEntities(allEntities.filter((entity) => entity.id !== deleteId));
       toast({
         title: t("toast.entity_deleted"),
         description: t("toast.record_removed"),
@@ -284,7 +246,7 @@ const Registry = () => {
               Syncing with Registry...
             </p>
           </div>
-        ) : entities.length === 0 ? (
+        ) : allEntities.length === 0 ? (
           <div className="rounded-2xl border-2 border-dashed border-primary/20 bg-gradient-to-br from-muted/30 via-muted/10 to-transparent overflow-hidden">
             <div className="flex flex-col items-center justify-center py-12 px-6">
               <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-4 ring-4 ring-primary/5">
@@ -315,83 +277,31 @@ const Registry = () => {
               <TableHeader className="sticky top-0 z-10">
                 <TableRow className="bg-secondary/95 backdrop-blur-sm border-b border-border/60">
                   <TableHead className="uppercase text-[11px] tracking-wider font-semibold text-muted-foreground">{t("table.name")}</TableHead>
+                  <TableHead className="uppercase text-[11px] tracking-wider font-semibold text-muted-foreground">{t("table.company_name")}</TableHead>
                   <TableHead className="uppercase text-[11px] tracking-wider font-semibold text-muted-foreground">
                     <button
-                      onClick={() => toggleSort("created")}
+                      onClick={() => toggleSort("admissionDate")}
                       className="flex items-center gap-2 hover:text-primary transition-colors font-medium"
                     >
-                      {t("table.created_on")}
-                      {getSortIcon("created")}
-                    </button>
-                  </TableHead>
-                  <TableHead className="uppercase text-[11px] tracking-wider font-semibold text-muted-foreground">
-                    <button
-                      onClick={() => toggleSort("updated")}
-                      className="flex items-center gap-2 hover:text-primary transition-colors font-medium"
-                    >
-                      {t("table.updated_on")}
-                      {getSortIcon("updated")}
+                      {t("table.admission_date")}
+                      {getSortIcon("admissionDate")}
                     </button>
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paginatedEntities.map((entity, i) => (
-                  <TableRow key={entity.id} className={cn("transition-colors", i % 2 === 0 ? "bg-background" : "bg-muted/40", "hover:bg-muted/60")}>
+                  <TableRow key={entity.id} onClick={() => navigate(`/employee/${entity.id}`, { state: { employee: entity.raw } })} className={cn("cursor-pointer transition-colors", i % 2 === 0 ? "bg-background" : "bg-muted/40", "hover:bg-muted/60")}>
                     <TableCell className="font-medium text-foreground">
                       {entity.name}
                     </TableCell>
-                    <TableCell>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="cursor-help">
-                              <div className="text-sm font-medium text-foreground">
-                                {new Date(entity.created).toLocaleDateString('en-US', {
-                                  month: 'short',
-                                  day: 'numeric',
-                                  year: 'numeric'
-                                })}
-                              </div>
-                              <div className="text-xs text-muted-foreground">
-                                {new Date(entity.created).toLocaleTimeString('en-US', {
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
-                              </div>
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="font-mono text-xs">{new Date(entity.created).toLocaleString()}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                    <TableCell className="text-foreground">
+                      {entity.companyName || "—"}
                     </TableCell>
                     <TableCell>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="cursor-help">
-                              <div className="text-sm font-medium text-foreground">
-                                {new Date(entity.updated).toLocaleDateString('en-US', {
-                                  month: 'short',
-                                  day: 'numeric',
-                                  year: 'numeric'
-                                })}
-                              </div>
-                              <div className="text-xs text-muted-foreground">
-                                {new Date(entity.updated).toLocaleTimeString('en-US', {
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
-                              </div>
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="font-mono text-xs">{new Date(entity.updated).toLocaleString()}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                      <div className="text-sm font-medium text-foreground">
+                        {(() => { const d = parseLocalDate(entity.admissionDate); return d ? format(d, "MMM d, yyyy") : "—"; })()}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -400,10 +310,22 @@ const Registry = () => {
           </div>
         )}
 
-        {totalPages > 1 && (
+        {totalPages > 0 && (
           <div className="flex justify-center mt-8">
             <Pagination>
               <PaginationContent className="gap-2">
+                <PaginationItem>
+                  <PaginationLink
+                    onClick={() => setCurrentPage(1)}
+                    className={cn(
+                      "cursor-pointer rounded-lg border-2 hover:bg-primary/10 hover:border-primary hover:text-primary transition-all",
+                      currentPage === 1 && "pointer-events-none opacity-50"
+                    )}
+                  >
+                    «
+                  </PaginationLink>
+                </PaginationItem>
+
                 <PaginationItem>
                   <PaginationPrevious
                     onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
@@ -414,28 +336,22 @@ const Registry = () => {
                   />
                 </PaginationItem>
 
-                {getPageNumbers(currentPage, totalPages).map((page, i) =>
-                  page === "ellipsis" ? (
-                    <PaginationItem key={`ellipsis-${i}`}>
-                      <PaginationEllipsis />
-                    </PaginationItem>
-                  ) : (
-                    <PaginationItem key={page}>
-                      <PaginationLink
-                        onClick={() => setCurrentPage(page)}
-                        isActive={currentPage === page}
-                        className={cn(
-                          "cursor-pointer rounded-lg border-2 transition-all",
-                          currentPage === page
-                            ? "bg-primary text-primary-foreground border-primary hover:bg-primary/90"
-                            : "border-border hover:bg-primary/10 hover:border-primary hover:text-primary"
-                        )}
-                      >
-                        {page}
-                      </PaginationLink>
-                    </PaginationItem>
-                  )
-                )}
+                {Array.from({ length: Math.min(10, totalPages - currentPage + 1) }, (_, i) => currentPage + i).map(page => (
+                  <PaginationItem key={page}>
+                    <PaginationLink
+                      onClick={() => setCurrentPage(page)}
+                      isActive={currentPage === page}
+                      className={cn(
+                        "cursor-pointer rounded-lg border-2 transition-all",
+                        currentPage === page
+                          ? "bg-primary text-primary-foreground border-primary hover:bg-primary/90"
+                          : "border-border hover:bg-primary/10 hover:border-primary hover:text-primary"
+                      )}
+                    >
+                      {page}
+                    </PaginationLink>
+                  </PaginationItem>
+                ))}
 
                 <PaginationItem>
                   <PaginationNext
@@ -445,6 +361,18 @@ const Registry = () => {
                       currentPage === totalPages && "pointer-events-none opacity-50"
                     )}
                   />
+                </PaginationItem>
+
+                <PaginationItem>
+                  <PaginationLink
+                    onClick={() => setCurrentPage(totalPages)}
+                    className={cn(
+                      "cursor-pointer rounded-lg border-2 hover:bg-primary/10 hover:border-primary hover:text-primary transition-all",
+                      currentPage === totalPages && "pointer-events-none opacity-50"
+                    )}
+                  >
+                    »
+                  </PaginationLink>
                 </PaginationItem>
               </PaginationContent>
             </Pagination>

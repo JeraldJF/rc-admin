@@ -205,7 +205,7 @@ const EditEntity = () => {
             });
           }
         }
-        navigate("/registry");
+        navigate("/employees");
       } catch (error) {
         toast({
           title: t("toast.failed_update"),

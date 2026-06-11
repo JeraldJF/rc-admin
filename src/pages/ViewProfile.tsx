@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { searchAdminByEmail, getAdminById } from "@/lib/api";
 import { searchEmployeeByEmail, searchEmployeeByPersonalId, fetchCertificatePdf, checkCertificateIssued } from "@/lib/employeeApi";
+import { parseLocalDate } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
 const ViewProfile = () => {
@@ -164,13 +165,15 @@ const ViewProfile = () => {
         const admissionRaw = employeeDetails.admissionDate || "";
         let admissionFormatted = "";
         if (admissionRaw) {
-          try { admissionFormatted = format(new Date(admissionRaw), "yyyy-MM-dd"); } catch { admissionFormatted = admissionRaw; }
+          const parsed = parseLocalDate(admissionRaw);
+          admissionFormatted = parsed ? format(parsed, "yyyy-MM-dd") : admissionRaw;
         }
 
         const exitRaw = employeeDetails.contractExpiration || "";
         let exitFormatted = "";
         if (exitRaw) {
-          try { exitFormatted = format(new Date(exitRaw), "yyyy-MM-dd"); } catch { exitFormatted = exitRaw; }
+          const parsed = parseLocalDate(exitRaw);
+          exitFormatted = parsed ? format(parsed, "yyyy-MM-dd") : exitRaw;
         }
 
         setFormData({
@@ -374,14 +377,14 @@ const ViewProfile = () => {
                       <div className="space-y-2 p-4 rounded-2xl bg-muted/30 border border-border/40">
                         <Label className="text-[11px] font-black text-muted-foreground uppercase tracking-[0.2em]">Date of Joining</Label>
                         <p className="text-lg font-bold text-foreground">
-                          {formData.dob ? (() => { try { return format(new Date(formData.dob), "dd/MM/yyyy"); } catch { return formData.dob; } })() : "—"}
+                          {formData.dob ? (() => { const d = parseLocalDate(formData.dob); return d ? format(d, "dd/MM/yyyy") : formData.dob; })() : "—"}
                         </p>
                       </div>
                       {formData.exitDate && (
                         <div className="space-y-2 p-4 rounded-2xl bg-muted/30 border border-border/40">
                           <Label className="text-[11px] font-black text-muted-foreground uppercase tracking-[0.2em]">Exit Date</Label>
                           <p className="text-lg font-bold text-foreground">
-                            {(() => { try { return format(new Date(formData.exitDate), "dd/MM/yyyy"); } catch { return formData.exitDate; } })()}
+                            {(() => { const d = parseLocalDate(formData.exitDate); return d ? format(d, "dd/MM/yyyy") : formData.exitDate; })()}
                           </p>
                         </div>
                       )}

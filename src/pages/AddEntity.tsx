@@ -11,7 +11,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
-import { cn } from "@/lib/utils";
+import { cn, parseLocalDate } from "@/lib/utils";
 import { createEmployee, issueEmployeeCertificate } from "@/lib/employeeApi";
 
 const FormField = ({ children }: { children: React.ReactNode }) => (
@@ -127,7 +127,7 @@ const AddEntity = () => {
           description: "Employee record created and certificate issued.",
           variant: "success",
         });
-        navigate("/registry");
+        navigate("/employees");
       } catch (error) {
         toast({
           title: "❌ Failed to add employee",
@@ -142,7 +142,7 @@ const AddEntity = () => {
   };
 
   const handleCancel = () => {
-    navigate("/registry");
+    navigate("/employees");
   };
 
   const pageTitle = "Add Employee";
@@ -232,13 +232,18 @@ const AddEntity = () => {
                           )}
                         >
                           <CalendarIcon className="mr-2 h-5 w-5" />
-                          {formData.dob ? format(new Date(formData.dob), "MMMM dd, yyyy") : "Select admission date"}
+                          {formData.dob ? format(parseLocalDate(formData.dob)!, "MMMM dd, yyyy") : "Select admission date"}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0 bg-popover shadow-xl border-border rounded-xl" align="start">
                         <Calendar
                           mode="single"
-                          selected={formData.dob ? new Date(formData.dob) : undefined}
+                          captionLayout="dropdown-buttons"
+                          fromYear={1950}
+                          toYear={new Date().getFullYear()}
+                          defaultMonth={parseLocalDate(formData.dob)}
+                          disabled={{ after: new Date() }}
+                          selected={parseLocalDate(formData.dob)}
                           onSelect={(date) => {
                             const value = date ? format(date, "yyyy-MM-dd") : "";
                             setFormData({ ...formData, dob: value });

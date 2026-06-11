@@ -127,7 +127,7 @@ export default function Callback() {
         sessionStorage.setItem('userRole', role);
         
         if (role === 'admin') {
-          navigate('/registry');
+          navigate('/employees');
         } else {
           navigate('/profile');
         }

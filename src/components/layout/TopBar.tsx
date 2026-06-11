@@ -83,7 +83,7 @@ export const TopBar = ({ title }: TopBarProps) => {
       setIsSearching(true);
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 800));
-      navigate(`/registry?search=${encodeURIComponent(searchQuery.trim())}`);
+      navigate(`/employees?search=${encodeURIComponent(searchQuery.trim())}`);
       setIsSearching(false);
     }
   };

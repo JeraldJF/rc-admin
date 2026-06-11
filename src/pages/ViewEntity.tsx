@@ -75,7 +75,7 @@ const ViewEntity = () => {
       <DashboardLayout>
         <div className="text-center py-12">
           <h2 className="text-2xl font-bold">{t("error.entity_not_found")}</h2>
-          <Button onClick={() => navigate("/registry")} className="mt-4">
+          <Button onClick={() => navigate("/employees")} className="mt-4">
             {t("btn.back_to_registry")}
           </Button>
         </div>
@@ -96,7 +96,7 @@ const ViewEntity = () => {
     <DashboardLayout>
       <div className="space-y-6">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => navigate("/registry")} className="gap-2 hover:bg-accent transition-colors rounded-lg">
+          <Button variant="ghost" size="sm" onClick={() => navigate("/employees")} className="gap-2 hover:bg-accent transition-colors rounded-lg">
             <ArrowLeft className="h-4 w-4" />
             <span className="font-semibold">{t("btn.back")}</span>
           </Button>

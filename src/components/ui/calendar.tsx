@@ -16,7 +16,17 @@ function Calendar({ className, classNames, showOutsideDays = true, ...props }: C
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
         month: "space-y-4",
         caption: "flex justify-center pt-1 relative items-center",
-        caption_label: "text-sm font-medium",
+        caption_label: "flex items-center gap-1 text-sm font-medium",
+        caption_dropdowns: "flex justify-center gap-1",
+        // The <select> overlays the caption label invisibly so only one styled
+        // pill shows per field — react-day-picker renders both elements otherwise.
+        dropdown:
+          "absolute inset-0 h-full w-full cursor-pointer appearance-none opacity-0",
+        dropdown_month:
+          "relative inline-flex items-center rounded-md border border-input bg-background px-2 py-1 text-sm font-medium shadow-sm hover:bg-accent",
+        dropdown_year:
+          "relative inline-flex items-center rounded-md border border-input bg-background px-2 py-1 text-sm font-medium shadow-sm hover:bg-accent",
+        vhidden: "hidden",
         nav: "space-x-1 flex items-center",
         nav_button: cn(
           buttonVariants({ variant: "outline" }),
