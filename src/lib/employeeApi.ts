@@ -11,7 +11,14 @@ const getBaseUrl = () => getConfig().VITE_API_BASE_URL || '';
 // Search all Employees (Admin)
 export const searchAllEmployees = async (limit: number, offset: number, nameFilter?: string) => {
     const filters: Record<string, unknown> = {};
-    if (nameFilter) filters.fullName = { contains: nameFilter };
+    if (nameFilter) {
+        const q = nameFilter.trim();
+        if (/^\d+$/.test(q)) {
+            filters.personalIdentification = { contains: q };
+        } else {
+            filters.fullName = { contains: q.toUpperCase() };
+        }
+    }
 
     const response = await fetch(`${getBaseUrl()}/registry/api/v1/Employee/search`, {
         method: "POST",

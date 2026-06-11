@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Search, SearchX, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Database } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Pagination,
   PaginationContent,
@@ -30,7 +29,7 @@ import { useToast } from "@/hooks/use-toast";
 import { searchAllEmployees } from "@/lib/employeeApi";
 
 type SortOrder = "asc" | "desc" | null;
-type SortField = "created" | "updated" | null;
+type SortField = "admissionDate" | null;
 
 interface EntityData {
   id: string;
@@ -38,8 +37,8 @@ interface EntityData {
   email: string;
   instituteName: string;
   mobile?: string;
-  created: string;
-  updated: string;
+  admissionDate: string;
+  positionName: string;
   degree?: string;
   isAttested?: boolean;
 }
@@ -56,9 +55,9 @@ const Registry = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [userRole, setUserRole] = useState<string>("admin");
-  const [sortField, setSortField] = useState<SortField>("created");
+  const [sortField, setSortField] = useState<SortField>("admissionDate");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
-  const recordsPerPage = 10;
+  const recordsPerPage = 100;
 
   useEffect(() => {
     const role = sessionStorage.getItem("userRole") || "admin";
@@ -121,8 +120,8 @@ const Registry = () => {
               ? `ID: ${actualEmployee.employeeNumber || actualEmployee.personalIdentification || actualEmployee.identityDetails?.employeeNumber}`
               : actualEmployee.instituteName || 'N/A',
             mobile: actualEmployee.phoneNumber || actualEmployee.mobile || actualEmployee.contactDetails?.mobile,
-            created: actualEmployee.osCreatedAt || actualEmployee.createdAt || actualEmployee._created || actualEmployee.createdOn || '',
-            updated: actualEmployee.osUpdatedAt || actualEmployee.updatedAt || actualEmployee._updated || actualEmployee.updatedOn || '',
+            admissionDate: actualEmployee.admissionDate || '',
+            positionName: actualEmployee.positionName || '',
           };
         });
 
@@ -148,8 +147,8 @@ const Registry = () => {
 
   const sortedEntities = [...allEntities].sort((a, b) => {
     if (!sortField || !sortOrder) return 0;
-    const dateA = new Date(a[sortField]).getTime();
-    const dateB = new Date(b[sortField]).getTime();
+    const dateA = new Date(a.admissionDate).getTime() || 0;
+    const dateB = new Date(b.admissionDate).getTime() || 0;
     return sortOrder === "desc" ? dateB - dateA : dateA - dateB;
   });
 
@@ -157,22 +156,21 @@ const Registry = () => {
   const startIdx = (currentPage - 1) * recordsPerPage;
   const paginatedEntities = sortedEntities.slice(startIdx, startIdx + recordsPerPage);
 
-  const toggleSort = (field: "created" | "updated") => {
-    if (sortField === field) {
-      // Cycle through: desc -> asc -> null
+  const toggleSort = () => {
+    if (sortField === "admissionDate") {
       if (sortOrder === "desc") setSortOrder("asc");
       else if (sortOrder === "asc") {
         setSortOrder(null);
         setSortField(null);
       }
     } else {
-      setSortField(field);
+      setSortField("admissionDate");
       setSortOrder("desc");
     }
   };
 
-  const getSortIcon = (field: "created" | "updated") => {
-    if (sortField !== field) return <ArrowUpDown className="h-4 w-4" />;
+  const getSortIcon = () => {
+    if (sortField !== "admissionDate") return <ArrowUpDown className="h-4 w-4" />;
     if (sortOrder === "desc") return <ArrowDown className="h-4 w-4" />;
     if (sortOrder === "asc") return <ArrowUp className="h-4 w-4" />;
     return <ArrowUpDown className="h-4 w-4" />;
@@ -194,17 +192,6 @@ const Registry = () => {
       setCurrentPage(1);
       setIsDeleting(false);
     }
-  };
-
-  const formatDate = (iso: string) => {
-    if (!iso) return { date: '—', time: '', full: '—' };
-    const d = new Date(iso);
-    if (isNaN(d.getTime())) return { date: '—', time: '', full: '—' };
-    return {
-      date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      time: d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-      full: d.toLocaleString(),
-    };
   };
 
   const addButtonText = "Add Employee";
@@ -276,65 +263,38 @@ const Registry = () => {
           </div>
         ) : (
           <div className="rounded-xl border border-border bg-card overflow-x-auto shadow-lg">
-            <Table className="relative w-full min-w-0">
+            <Table className="relative w-full table-fixed">
+              <colgroup>
+                <col className="w-[45%]" />
+                <col className="w-[15%]" />
+                <col className="w-[40%]" />
+              </colgroup>
               <TableHeader className="sticky top-0 z-10">
                 <TableRow className="bg-secondary/95 backdrop-blur-sm border-b border-border/60">
                   <TableHead className="uppercase text-[11px] tracking-wider font-semibold text-muted-foreground">{t("table.name")}</TableHead>
                   <TableHead className="uppercase text-[11px] tracking-wider font-semibold text-muted-foreground">
                     <button
-                      onClick={() => toggleSort("created")}
+                      onClick={toggleSort}
                       className="flex items-center gap-2 hover:text-primary transition-colors font-medium"
                     >
-                      {t("table.created_on")}
-                      {getSortIcon("created")}
+                      Joining Date
+                      {getSortIcon()}
                     </button>
                   </TableHead>
-                  <TableHead className="uppercase text-[11px] tracking-wider font-semibold text-muted-foreground">
-                    <button
-                      onClick={() => toggleSort("updated")}
-                      className="flex items-center gap-2 hover:text-primary transition-colors font-medium"
-                    >
-                      {t("table.updated_on")}
-                      {getSortIcon("updated")}
-                    </button>
-                  </TableHead>
+                  <TableHead className="uppercase text-[11px] tracking-wider font-semibold text-muted-foreground">Designation</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paginatedEntities.map((entity, i) => (
                   <TableRow key={entity.id} className={cn("transition-colors", i % 2 === 0 ? "bg-background" : "bg-muted/40", "hover:bg-muted/60")}>
-                    <TableCell className="font-medium text-foreground">
+                    <TableCell className="font-medium text-foreground truncate">
                       {entity.name}
                     </TableCell>
-                    <TableCell>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="cursor-help">
-                              <div className="text-sm font-medium text-foreground">{formatDate(entity.created).date}</div>
-                              <div className="text-xs text-muted-foreground">{formatDate(entity.created).time}</div>
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="font-mono text-xs">{formatDate(entity.created).full}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                    <TableCell className="text-sm text-foreground">
+                      {/^\d{4}-\d{2}-\d{2}/.test(entity.admissionDate) ? entity.admissionDate : '—'}
                     </TableCell>
-                    <TableCell>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="cursor-help">
-                              <div className="text-sm font-medium text-foreground">{formatDate(entity.updated).date}</div>
-                              <div className="text-xs text-muted-foreground">{formatDate(entity.updated).time}</div>
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="font-mono text-xs">{formatDate(entity.updated).full}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                    <TableCell className="text-sm text-foreground truncate">
+                      {entity.positionName || '—'}
                     </TableCell>
                   </TableRow>
                 ))}
