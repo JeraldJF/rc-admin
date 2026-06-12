@@ -10,24 +10,17 @@ const getBaseUrl = () => getConfig().VITE_API_BASE_URL || '';
 
 // Search all Employees (Admin)
 export const searchAllEmployees = async (limit: number, offset: number, nameFilter?: string) => {
-    const filters: Record<string, unknown> = {};
-     if (nameFilter) {
-        const q = nameFilter.trim();
-        if (/^\d+$/.test(q)) {
-            filters.personalIdentification = { contains: q };
-        } else {
-            filters.fullName = { contains: q.toUpperCase() };
-        }
-    }
+    const isNumeric = nameFilter && /^\d+$/.test(nameFilter.trim());
+    const filters: Record<string, unknown> = isNumeric
+        ? { personalIdentification: { contains: nameFilter!.trim() } }
+        : {};
 
     const response = await fetch(`${getBaseUrl()}/registry/api/v1/Employee/search`, {
         method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-        },
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ filters, limit, offset }),
+        // Name searches: fetch all records, filter client-side (server `contains` is case-sensitive)
+        body: JSON.stringify({ filters, limit: nameFilter && !isNumeric ? 2000 : limit, offset: nameFilter && !isNumeric ? 0 : offset }),
     });
 
     if (!response.ok) {
@@ -35,7 +28,16 @@ export const searchAllEmployees = async (limit: number, offset: number, nameFilt
         err.status = response.status;
         throw err;
     }
-    return await response.json();
+
+    const data = await response.json();
+
+    if (nameFilter && !isNumeric) {
+        const q = nameFilter.trim().toLowerCase();
+        const arr: any[] = Array.isArray(data) ? data : (data?.data || data?.Employee || data?.result || data?.content || []);
+        return arr.filter((item: any) => ((item?.Employee || item).fullName || '').toLowerCase().includes(q));
+    }
+
+    return data;
 };
 
 // Search Employee by personal identification (cédula)
